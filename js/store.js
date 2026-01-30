@@ -1,7 +1,7 @@
 // Store.js - Supabase Live Integration
 (function () {
     const SUPABASE_URL = 'https://leijfflxeyqaioyzkxgi.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_gmnQXuI23HeiA0dtIshbyQ_KiOlNZaL';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaWpmZmx4ZXlxYWlveXpreGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3OTQ5MzQsImV4cCI6MjA4NTM3MDkzNH0.8v_LT9Gh0QmrUjyXB4V9BPazk_yUBIkbHngwlQhLFiI';
 
     // تأكد من وجود مكتبة Supabase
     if (!window.supabase) {
