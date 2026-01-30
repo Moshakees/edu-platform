@@ -180,14 +180,23 @@ async function renderContentTab(container) {
             const data = {};
             inputs.forEach(i => data[i.key] = i.input.value);
 
+            // تحقق من الحقول الفارغة (تجاهل حقل المحتوى إذا كان النوع اختبار لأنه مخفي)
+            const emptyField = inputs.find(i => !i.input.value && !(data.type === 'quiz' && i.key === 'content'));
+            if (emptyField) return showNotification(`يرجى إكمال البيانات أولاً`, 'error');
+
             if (title === '4. إضافة درس' && data.type === 'quiz') {
                 if (quizData.length === 0) return showNotification('يجب إضافة سؤال واحد على الأقل', 'error');
                 data.content = quizData;
             }
 
-            await onSubmit(data);
-            showNotification('تمت الإضافة بنجاح');
-            renderContentTab(container);
+            try {
+                await onSubmit(data);
+                showNotification('تمت الإضافة بنجاح');
+                renderContentTab(container);
+            } catch (e) {
+                console.error("Save Error:", e);
+                showNotification('حدث خطأ في قاعدة البيانات: ' + (e.message || 'مشكلة في الاتصال'), 'error');
+            }
         };
 
         form.append(...inputs.map(i => i.input.parentElement), btn);
@@ -211,7 +220,7 @@ async function renderContentTab(container) {
                 });
 
                 const qInput = elt('input', { placeholder: 'السؤال' });
-                const optInputs = [elt('input', { placeholder: 'الاخلتيار 1' }), elt('input', { placeholder: 'الاختيار 2' }), elt('input', { placeholder: 'الاختيار 3' }), elt('input', { placeholder: 'الاختيار 4' })];
+                const optInputs = [elt('input', { placeholder: 'الاختيار 1' }), elt('input', { placeholder: 'الاختيار 2' }), elt('input', { placeholder: 'الاختيار 3' }), elt('input', { placeholder: 'الاختيار 4' })];
                 const correctInput = elt('select', {},
                     elt('option', { value: 0 }, 'الاختيار 1 هو الصحيح'),
                     elt('option', { value: 1 }, 'الاختيار 2 هو الصحيح'),

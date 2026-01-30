@@ -112,10 +112,24 @@
         async getCodes() { const { data } = await supabase.from('codes').select('*').order('created_at', { ascending: false }); return data || []; }
         async updateCodeStatus(c, s) { await supabase.from('codes').update({ status: s }).eq('code', c); }
         async deleteCode(codeStr) { await supabase.from('codes').delete().eq('code', codeStr); }
-        async addSubject(t, i) { await supabase.from('subjects').insert([{ title: t, image: i }]); }
-        async addTeacher(sid, n, i, b) { await supabase.from('teachers').insert([{ subject_id: sid, name: n, image: i, bio: b }]); }
-        async addUnit(tid, t) { await supabase.from('units').insert([{ teacher_id: tid, title: t }]); }
-        async addLesson(uid, t, ty, c) { await supabase.from('lessons').insert([{ unit_id: uid, title: t, type: ty, content: c }]); }
+
+        async addSubject(t, i) {
+            const { error } = await supabase.from('subjects').insert([{ title: t, image: i }]);
+            if (error) throw error;
+        }
+        async addTeacher(sid, n, i, b) {
+            const { error } = await supabase.from('teachers').insert([{ subject_id: parseInt(sid), name: n, image: i, bio: b }]);
+            if (error) throw error;
+        }
+        async addUnit(tid, t) {
+            const { error } = await supabase.from('units').insert([{ teacher_id: parseInt(tid), title: t }]);
+            if (error) throw error;
+        }
+        async addLesson(uid, t, ty, c) {
+            const { error } = await supabase.from('lessons').insert([{ unit_id: parseInt(uid), title: t, type: ty, content: c }]);
+            if (error) throw error;
+        }
+
         async deleteSubject(id) { await supabase.from('subjects').delete().eq('id', id); }
         async deleteTeacher(id) { await supabase.from('teachers').delete().eq('id', id); }
         async deleteUnit(id) { await supabase.from('units').delete().eq('id', id); }
