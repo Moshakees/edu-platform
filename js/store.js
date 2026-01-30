@@ -159,7 +159,7 @@
         async addSliderImage(u) { await supabase.from('slider').insert([{ image_url: u }]); }
         async deleteSliderImage(id) { await supabase.from('slider').delete().eq('id', id); }
 
-        // Settings (Cash Number)
+        // --- نظام الاشتراكات والمدفوعات ---
         async getSettings(key) {
             const { data } = await supabase.from('settings').select('value').eq('key', key).single();
             return data?.value || '';
@@ -169,7 +169,6 @@
             await supabase.from('settings').upsert({ key, value }, { onConflict: 'key' });
         }
 
-        // Payments
         async submitPayment(p) {
             const { error } = await supabase.from('payments').insert([p]);
             if (error) throw error;

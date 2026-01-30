@@ -55,8 +55,9 @@ window.LoginView = function () {
     };
 
     const renderPaymentPage = async () => {
-        container.innerHTML = '';
+        container.innerHTML = '<div style="display:flex; justify-content:center; padding:100px;"><div class="spinner"></div></div>';
         const cashNumber = await window.store.getSettings('cash_number');
+        container.innerHTML = '';
 
         const pageContent = elt('div', { className: 'glass-panel', style: 'width: 100%; max-width: 500px; padding: 40px; position:relative;' },
             elt('button', {
@@ -79,7 +80,7 @@ window.LoginView = function () {
                 )
             ),
 
-            elt('div', { className: 'glass-panel', style: 'padding:15px; margin-bottom:25px; border-right:4px solid var(--secondary-color); font-size:0.9rem;' },
+            elt('div', { className: 'glass-panel', style: 'padding:15px; margin-bottom:25px; border-right:4px solid var(--secondary-color); font-size:0.9rem; background:rgba(0,0,0,0.2);' },
                 elt('p', { style: 'font-weight:bold; margin-bottom:5px;' }, 'طريقة الدفع:'),
                 elt('p', {}, `يرجى تحويل المبلغ المطلوب إلى رقم فودافون كاش التالي:`),
                 elt('div', { style: 'font-size:1.4rem; font-weight:bold; letter-spacing:2px; color:var(--secondary-color); margin:10px 0; text-align:center;' }, cashNumber || '01XXXXXXXXX')
@@ -89,55 +90,54 @@ window.LoginView = function () {
                 elt('input', { id: 'p-name', placeholder: 'اسمك الثلاثي' }),
                 elt('input', { id: 'p-phone', placeholder: 'رقم الهاتف الذي حولت منه' }),
                 elt('input', { id: 'p-telegram', placeholder: 'يوزر تيليجرام (للتواصل)' }),
-                elt('div', { style: 'font-size:0.8rem; color:var(--text-muted); text-align:right;' }, 'اختر الباقة:'),
                 elt('select', { id: 'p-plan' },
                     elt('option', { value: 'monthly' }, 'اشتراك شهري (50 جنيه)'),
                     elt('option', { value: 'yearly' }, 'اشتراك سنوي (500 جنيه)')
                 ),
-                elt('div', { style: 'text-align:right; font-size:0.8rem; color:var(--text-muted);' }, 'ارفاق صورة التحويل (سكرين شوت):'),
-                elt('input', { id: 'p-file', type: 'file', accept: 'image/*', style: 'padding:5px;' }),
+                elt('div', { style: 'text-align:right; font-size:0.8rem; color:var(--text-muted);' }, 'ارفق سكرين شوت للتحويل:'),
+                elt('input', { id: 'p-file', type: 'file', accept: 'image/*' }),
                 elt('button', {
                     className: 'btn btn-primary',
                     style: 'margin-top:10px;',
                     onclick: async (e) => {
+                        const btn = e.target;
                         const name = document.getElementById('p-name').value;
                         const phone = document.getElementById('p-phone').value;
                         const telegram = document.getElementById('p-telegram').value;
                         const plan = document.getElementById('p-plan').value;
                         const fileInput = document.getElementById('p-file');
 
-                        if (!name || !phone) return showNotification('يرجى كتابة الاسم ورقم الهاتف', 'error');
-                        if (!fileInput.files[0]) return showNotification('يرجى إرفاق صورة التحويل (سكرين شوت)', 'error');
+                        if (!name || !phone || !fileInput.files[0]) return showNotification('يرجى إكمال البيانات المطلوبة', 'error');
 
-                        e.target.disabled = true;
-                        e.target.textContent = 'جاري رفع الصورة...';
+                        btn.disabled = true;
+                        btn.textContent = 'جاري رفع الصورة...';
 
                         try {
-                            const screenshotUrl = await window.store.uploadFile(fileInput.files[0]);
-                            e.target.textContent = 'جاري إرسال الطلب...';
+                            const url = await window.store.uploadFile(fileInput.files[0]);
+                            btn.textContent = 'جاري إرسال الطلب...';
 
                             await window.store.submitPayment({
                                 student_name: name,
                                 student_phone: phone,
                                 telegram_username: telegram,
                                 plan_type: plan,
-                                screenshot_url: screenshotUrl,
+                                screenshot_url: url,
                                 status: 'pending'
                             });
+
                             container.innerHTML = `
                                 <div class="glass-panel" style="padding:40px; text-align:center;">
                                     <ion-icon name="checkmark-circle-outline" style="font-size:5rem; color:#10b981;"></ion-icon>
                                     <h2 style="margin:20px 0;">تم إرسال طلبك!</h2>
                                     <p>جاري مراجعة طلب الاشتراك الخاص بك من قبل الإدارة.</p>
-                                    <p style="margin-top:10px; color:var(--text-muted); font-size:0.8rem;">سيتم التواصل معك عبر تيليجرام فور تفعيل الكود.</p>
-                                    <button class="btn btn-outline" style="margin-top:30px;" onclick="window.location.reload()">العودة للدخول</button>
+                                    <p style="margin-top:10px; color:var(--text-muted); font-size:0.8rem;">سيتم التواصل معك فور تفعيل الكود.</p>
+                                    <button class="btn btn-primary" style="margin-top:30px;" onclick="window.location.reload()">العودة</button>
                                 </div>
                             `;
                         } catch (err) {
-                            console.error(err);
-                            showNotification('حدث خطأ أثناء الإرسال أو الرفع', 'error');
-                            e.target.disabled = false;
-                            e.target.textContent = 'إرسال بيانات التحويل (تأكيد)';
+                            showNotification('حدث خطأ في الإرسال', 'error');
+                            btn.disabled = false;
+                            btn.textContent = 'إرسال بيانات التحويل';
                         }
                     }
                 }, 'إرسال بيانات التحويل (تأكيد)')

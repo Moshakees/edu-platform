@@ -360,15 +360,14 @@ textarea:focus {
     transition: opacity 1s ease-in-out;
 }
 
-/* Spinner for Loading */
+/* --- عناصر إضافية للوحة التحكم والدفع --- */
 .spinner {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
     border: 3px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
     border-top-color: var(--primary-color);
-    animation: spin 1s ease-in-out infinite;
-    display: inline-block;
+    animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
@@ -377,30 +376,27 @@ textarea:focus {
     }
 }
 
-/* Badges */
 .badge {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    background: var(--surface-border);
-    color: var(--text-color);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: white;
 }
 
-.badge-success {
-    background: #10b981;
-}
-
-.badge-error {
-    background: #ef4444;
-}
-
-.badge-warning {
+.badge-pending {
     background: #f59e0b;
 }
 
-/* Admin Tabs Scroll Fix */
-#admin-content {
-    margin-top: 20px;
+.badge-completed {
+    background: #10b981;
+}
+
+.badge-failed {
+    background: #ef4444;
+}
+
+.tab-active {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
 }
