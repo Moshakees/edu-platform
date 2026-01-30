@@ -162,7 +162,7 @@ async function renderContentTab(container) {
             let input;
             if (f.type === 'select') {
                 input = elt('select', {});
-                f.options().forEach(o => input.append(elt('option', { value: o.id }, o.title)));
+                f.options().forEach(o => input.append(elt('option', { value: o.id }, o.title || o.name)));
             } else {
                 input = elt('input', { type: f.type || 'text', placeholder: f.placeholder });
             }
@@ -210,18 +210,64 @@ async function renderContentTab(container) {
         { label: 'المحتوي', key: 'content' }
     ], d => {
         let content = d.content;
-        if (d.type === 'quiz') content = JSON.parse(content || '[]');
+        if (d.type === 'quiz') {
+            try {
+                content = JSON.parse(content || '[]');
+            } catch (e) {
+                showNotification('خطأ في تنسيق JSON الخاص بالاختبار', 'error');
+                return;
+            }
+        }
         return window.store.addLesson(d.unitId, d.title, d.type, content);
     }));
 
-    // إدارة الحذف
-    const manageArea = elt('div', { style: 'margin-top: 40px;' }, elt('h2', {}, 'إدارة المحتوى الحالي'));
+    // إدارة الحذف والتعديل
+    const manageTitle = elt('h2', { style: 'margin-top: 40px; margin-bottom: 20px; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px;' }, 'إدارة المحتوى الحالي');
+    container.append(manageTitle);
+
+    // المواد
+    const sSection = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, 'المواد الدراسية'));
     db.subjects.forEach(s => {
         const item = elt('div', { className: 'glass-panel', style: 'padding: 10px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;' },
-            elt('span', {}, `المادة: ${s.title}`),
-            elt('button', { className: 'btn btn-outline', style: 'color:red; border-color:red; font-size:0.8rem;', onclick: async () => { if (confirm('متأكد؟')) { await window.store.deleteSubject(s.id); renderContentTab(container); } } }, 'حذف')
+            elt('span', { style: 'font-weight:bold;' }, `📚 مادة: ${s.title}`),
+            elt('button', { className: 'btn btn-outline', style: 'color:#ef4444; border-color:#ef4444; font-size:0.8rem;', onclick: async () => { if (confirm('حذف المادة سيحذف المدرسين والدروس التابعة لها. متأكد؟')) { await window.store.deleteSubject(s.id); renderContentTab(container); } } }, 'حذف')
         );
-        manageArea.append(item);
+        sSection.append(item);
     });
-    container.append(manageArea);
+    if (db.subjects.length === 0) sSection.append(elt('p', { style: 'color:var(--text-muted);' }, 'لا توجد مواد مضافة بعد'));
+
+    // المدرسين
+    const tSection = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, 'المدرسين'));
+    db.teachers.forEach(t => {
+        const sub = db.subjects.find(s => s.id == t.subject_id);
+        const item = elt('div', { className: 'glass-panel', style: 'padding: 10px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;' },
+            elt('span', {}, `👤 المدرس: ${t.name} (مادة: ${sub?.title || '؟'})`),
+            elt('button', { className: 'btn btn-outline', style: 'color:#ef4444; border-color:#ef4444; font-size:0.8rem;', onclick: async () => { if (confirm('حذف المدرس؟')) { await window.store.deleteTeacher(t.id); renderContentTab(container); } } }, 'حذف')
+        );
+        tSection.append(item);
+    });
+    if (db.teachers.length === 0) tSection.append(elt('p', { style: 'color:var(--text-muted);' }, 'لا يوجد مدرسون مضافون بعد'));
+
+    // الوحدات والدروس
+    const lSection = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, 'الوحدات والدروس'));
+    db.units.forEach(u => {
+        const tech = db.teachers.find(t => t.id == u.teacher_id);
+        const lessons = db.lessons.filter(l => l.unit_id == u.id);
+        const uDiv = elt('div', { className: 'glass-panel', style: 'padding: 15px; margin-bottom: 15px;' },
+            elt('div', { style: 'display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:5px;' },
+                elt('strong', {}, `📦 وحدة: ${u.title} (مدرس: ${tech?.name || '؟'})`),
+                elt('button', { style: 'background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;', onclick: async () => { if (confirm('حذف الوحدة؟')) { await window.store.deleteUnit(u.id); renderContentTab(container); } } }, 'حذف الوحدة')
+            ),
+            elt('div', { style: 'padding-right:15px;' },
+                ...lessons.map(l => elt('div', { style: 'display:flex; justify-content:space-between; padding:5px 0; font-size:0.9rem;' },
+                    elt('span', {}, `• ${l.title} (${l.type})`),
+                    elt('button', { style: 'background:none; border:none; color:#ef4444; pointer:cursor; font-size:0.7rem;', onclick: async () => { if (confirm('حذف الدرس؟')) { await window.store.deleteLesson(l.id); renderContentTab(container); } } }, 'حذف')
+                ))
+            )
+        );
+        lSection.append(uDiv);
+    });
+    if (db.units.length === 0) lSection.append(elt('p', { style: 'color:var(--text-muted);' }, 'لا توجد وحدات أو دروس مضافة بعد'));
+
+    container.append(sSection, tSection, lSection);
 }
