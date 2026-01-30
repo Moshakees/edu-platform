@@ -12,14 +12,21 @@
                     }
                 }
             }
-            for (const child of children) {
-                if (child === null || child === undefined || child === false) continue;
-                if (typeof child !== "string") {
-                    dom.appendChild(child);
-                } else {
-                    dom.appendChild(document.createTextNode(child));
+
+            const addChildren = (target, kids) => {
+                for (const child of kids) {
+                    if (child === null || child === undefined || child === false) continue;
+                    if (Array.isArray(child)) {
+                        addChildren(target, child);
+                    } else if (typeof child !== "string") {
+                        target.appendChild(child);
+                    } else {
+                        target.appendChild(document.createTextNode(child));
+                    }
                 }
-            }
+            };
+
+            addChildren(dom, children);
             return dom;
         },
 
