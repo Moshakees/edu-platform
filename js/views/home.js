@@ -20,8 +20,8 @@ window.HomeView = async function () {
             )
         ),
         elt('div', { style: 'display: flex; gap: 10px;' },
-            session.role === 'admin' ? elt('button', { className: 'btn btn-outline', onclick: () => window.location.hash = '#admin' }, 'لوحة التحكم') : null,
-            elt('button', { className: 'btn btn-outline', onclick: () => window.store.logout() }, 'تسجيل الخروج')
+            session.role === 'admin' ? elt('button', { className: 'btn btn-outline', onclick: () => window.location.hash = '#admin', title: 'لوحة التحكم' }, elt('ion-icon', { name: 'settings-outline' })) : null,
+            elt('button', { className: 'btn btn-outline', style: 'color: #ef4444; border-color: rgba(239, 68, 68, 0.3);', onclick: () => { if (confirm('هل تريد تسجيل الخروج؟')) window.store.logout(); }, title: 'تسجيل الخروج' }, elt('ion-icon', { name: 'log-out-outline', style: 'font-size: 1.2rem;' }))
         )
     );
 

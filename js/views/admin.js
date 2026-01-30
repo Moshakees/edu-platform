@@ -11,8 +11,11 @@ window.AdminView = async function () {
     const container = elt('div', { className: 'container page-transition', style: 'padding-top: 40px; padding-bottom: 60px;' });
 
     const header = elt('header', { className: 'main-header' },
-        elt('h1', {}, 'لوحة التحكم (Live)'),
-        elt('button', { className: 'btn btn-outline', onclick: () => window.store.logout() }, 'تسجيل الخروج')
+        elt('div', { style: 'display:flex; align-items:center; gap:15px;' },
+            elt('button', { className: 'btn btn-outline', onclick: () => window.location.hash = '#home', title: 'الرئيسية' }, elt('ion-icon', { name: 'home-outline' })),
+            elt('h1', { style: 'margin-bottom:0;' }, 'لوحة التحكم')
+        ),
+        elt('button', { className: 'btn btn-outline', style: 'color: #ef4444; border-color: rgba(239, 68, 68, 0.3);', onclick: () => { if (confirm('هل تريد تسجيل الخروج؟')) window.store.logout(); }, title: 'تسجيل الخروج' }, elt('ion-icon', { name: 'log-out-outline', style: 'font-size: 1.2rem;' }))
     );
 
     const tabs = elt('div', { style: 'display: flex; gap: 20px; margin-bottom: 30px; border-bottom: 1px solid var(--surface-border); padding-bottom: 10px;' });
