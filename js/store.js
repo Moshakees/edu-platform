@@ -178,11 +178,14 @@
         async updatePaymentStatus(id, status) {
             await supabase.from('payments').update({ status }).eq('id', id);
         }
-        async uploadFile(file) {
+        async uploadFile(file, bucket = 'uploads') {
             const fileName = `${Date.now()}_${file.name}`;
-            const { data, error } = await supabase.storage.from('payments').upload(fileName, file);
-            if (error) throw error;
-            const { data: { publicUrl } } = supabase.storage.from('payments').getPublicUrl(fileName);
+            const { data, error } = await supabase.storage.from(bucket).upload(fileName, file);
+            if (error) {
+                console.error("Upload error:", error);
+                throw new Error("فشل الرفع. تأكد من إنشاء Storage Bucket باسم 'uploads' وجعله Public في Supabase.");
+            }
+            const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
             return publicUrl;
         }
     }

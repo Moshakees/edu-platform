@@ -98,7 +98,8 @@ CREATE TABLE IF NOT EXISTS public.payments (
 );
 ALTER TABLE public.payments DISABLE ROW LEVEL SECURITY;
 
--- تأكد من إنشاء Storage Bucket باسم 'payments' في لوحة تحكم Supabase لجعل رفع الصور متاحاً.
+-- تأكد من إنشاء Storage Bucket باسم 'uploads' في لوحة تحكم Supabase لجعل رفع الصور والملفات متاحاً.
+-- واحرص على جعل الـ Bucket "Public".
 
 -- بيانات افتراضية للإعدادات
 INSERT INTO public.settings (key, value) VALUES ('cash_number', '010XXXXXXXX') ON CONFLICT DO NOTHING;

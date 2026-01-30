@@ -127,9 +127,20 @@ async function renderContentTab(container) {
         createSection('1. إضافة مادة', [{ label: 'اسم المادة', key: 'title' }, { label: 'رابط الصورة', key: 'image' }], d => window.store.addSubject(d.title, d.image), db.subjects, id => window.store.deleteSubject(id)),
         createSection('2. إضافة مدرس', [{ label: 'المادة', key: 'sid', type: 'select', options: () => db.subjects }, { label: 'اسم المدرس', key: 'name' }, { label: 'الصورة', key: 'image' }, { label: 'نبذة', key: 'bio' }], d => window.store.addTeacher(d.sid, d.name, d.image, d.bio), db.teachers, id => window.store.deleteTeacher(id)),
         createSection('3. إضافة وحدة', [{ label: 'المدرس', key: 'tid', type: 'select', options: () => db.teachers }, { label: 'اسم الوحدة', key: 'title' }], d => window.store.addUnit(d.tid, d.title), db.units, id => window.store.deleteUnit(id)),
-        createSection('4. إضافة درس', [{ label: 'الوحدة', key: 'uid', type: 'select', options: () => db.units }, { label: 'العنوان', key: 'title' }, { label: 'النوع', key: 'type', type: 'select', options: () => [{ id: 'video', title: 'فيديو' }, { id: 'quiz', title: 'اختبار' }] }, { label: 'المحتوى (رابط الفيديو أو JSON)', key: 'content' }], d => {
+        createSection('4. إضافة درس', [
+            { label: 'الوحدة', key: 'uid', type: 'select', options: () => db.units },
+            { label: 'العنوان', key: 'title' },
+            { label: 'النوع', key: 'type', type: 'select', options: () => [{ id: 'video', title: 'فيديو' }, { id: 'quiz', title: 'اختبار' }, { id: 'file', title: 'ملف PDF / مذكرة' }] },
+            { label: 'المحتوى (رابط الفيديو أو JSON)', key: 'content' }
+        ], async (d, file) => {
             let content = d.content;
-            if (d.type === 'quiz' && typeof content === 'string') { try { content = JSON.parse(content || '[]'); } catch (e) { showNotification('خطأ JSON', 'error'); return; } }
+            if (d.type === 'file' && file) {
+                showNotification('جاري رفع الملف...', 'success');
+                content = await window.store.uploadFile(file);
+            }
+            if (d.type === 'quiz' && typeof content === 'string') {
+                try { content = JSON.parse(content || '[]'); } catch (e) { showNotification('خطأ JSON', 'error'); return; }
+            }
             return window.store.addLesson(d.uid, d.title, d.type, content);
         }, db.lessons, id => window.store.deleteLesson(id))
     );
@@ -181,6 +192,27 @@ function createSection(title, fields, onSubmit, items = [], onDelete = null) {
     if (title === '4. إضافة درس') {
         const typeSelect = inputs.find(i => i.key === 'type').input;
         const contentInput = inputs.find(i => i.key === 'content').input;
+        const fileIn = elt('input', { type: 'file', style: 'display:none; margin-top:10px;' });
+        panel.append(fileIn);
+
+        // تعديل سلوك الزر ليدعم الملف
+        btn.onclick = async () => {
+            const data = {};
+            inputs.forEach(i => data[i.key] = i.input.value);
+            if (data.type === 'quiz') {
+                if (quizData.length === 0) return showNotification('أضف سؤالاً واحداً على الأقل', 'error');
+                data.content = quizData;
+            }
+            try {
+                // نمرر الملف المختار كمعامل ثاني
+                await onSubmit(data, fileIn.files[0]);
+                showNotification('تمت الإضافة بنجاح');
+                renderContentTab(document.getElementById('admin-content'));
+            } catch (e) {
+                showNotification(e.message || 'حدث خطأ أثناء الحفظ', 'error');
+            }
+        };
+
         quizBuilder = elt('div', { style: 'display:none; margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;' });
 
         const renderBuilder = () => {
@@ -204,10 +236,11 @@ function createSection(title, fields, onSubmit, items = [], onDelete = null) {
         };
 
         typeSelect.onchange = () => {
-            const isQuiz = typeSelect.value === 'quiz';
-            contentInput.parentElement.style.display = isQuiz ? 'none' : 'block';
-            quizBuilder.style.display = isQuiz ? 'block' : 'none';
-            if (isQuiz) renderBuilder();
+            const val = typeSelect.value;
+            contentInput.parentElement.style.display = (val === 'video' || val === 'video-link') ? 'block' : 'none';
+            quizBuilder.style.display = val === 'quiz' ? 'block' : 'none';
+            fileIn.style.display = val === 'file' ? 'block' : 'none';
+            if (val === 'quiz') renderBuilder();
         };
         panel.append(quizBuilder);
     }
