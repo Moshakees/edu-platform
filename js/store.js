@@ -158,6 +158,31 @@
         async getSliderImages() { const { data } = await supabase.from('slider').select('*'); return data || []; }
         async addSliderImage(u) { await supabase.from('slider').insert([{ image_url: u }]); }
         async deleteSliderImage(id) { await supabase.from('slider').delete().eq('id', id); }
+
+        // Settings (Cash Number)
+        async getSettings(key) {
+            const { data } = await supabase.from('settings').select('value').eq('key', key).single();
+            return data?.value || '';
+        }
+
+        async updateSettings(key, value) {
+            await supabase.from('settings').upsert({ key, value });
+        }
+
+        // Payments
+        async submitPayment(p) {
+            const { error } = await supabase.from('payments').insert([p]);
+            if (error) throw error;
+        }
+
+        async getPayments() {
+            const { data } = await supabase.from('payments').select('*').order('created_at', { ascending: false });
+            return data || [];
+        }
+
+        async updatePaymentStatus(id, status) {
+            await supabase.from('payments').update({ status }).eq('id', id);
+        }
     }
 
     window.store = new Store();
