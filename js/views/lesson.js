@@ -22,23 +22,17 @@ window.LessonView = async function (lessonId) {
     // --- Video Content ---
     if (lesson.type === 'video') {
         const videoWrapper = elt('div', { style: 'position: relative; width: 100%; aspect-ratio: 16/9; background: #000;' });
-
-        // Watermark
         const watermark = elt('div', {
             id: 'video-watermark',
             style: 'position: absolute; z-index: 100; color: rgba(255,255,255,0.3); font-size: 1.2rem; pointer-events: none; transition: 0.5s;'
         }, `ID: ${session.code || 'User'}`);
-
         const iframe = elt('iframe', {
             src: lesson.content.includes('odysee.com') ? lesson.content.replace('odysee.com', 'odysee.com/$/embed') : lesson.content,
             style: 'width: 100%; height: 100%; border: none;',
             allowfullscreen: true
         });
-
         videoWrapper.append(watermark, iframe);
         contentArea.append(videoWrapper);
-
-        // Watermark Movement Logic
         setInterval(() => {
             watermark.style.top = Math.random() * 80 + '%';
             watermark.style.left = Math.random() * 80 + '%';
@@ -64,10 +58,24 @@ window.LessonView = async function (lessonId) {
     // --- Quiz Content ---
     if (lesson.type === 'quiz') {
         contentArea.style.padding = '40px';
-        const quizData = lesson.content;
+        const quizData = lesson.content || [];
 
-        const renderQuiz = () => {
+        const renderQuiz = async () => {
             contentArea.innerHTML = '';
+
+            // Check Attempts
+            const attempts = await window.store.getQuizAttempts(session.code, lessonId);
+            if (attempts && attempts.attempts_count >= 2) {
+                contentArea.append(elt('div', { style: 'text-align:center; padding: 40px;' },
+                    elt('ion-icon', { name: 'lock-closed-outline', style: 'font-size: 4rem; color: #ef4444;' }),
+                    elt('h2', { style: 'margin:20px 0;' }, 'عذراً، انتهت محاولاتك!'),
+                    elt('p', {}, 'لقد استنفدت الحد الأقصى للمحاولات (محاولتين) لهذا الاختبار.'),
+                    elt('p', { style: 'margin-top:10px; font-weight:bold;' }, `آخر نتيجة: ${attempts.last_score} من ${quizData.length}`),
+                    elt('button', { className: 'btn btn-primary', style: 'margin-top: 20px;', onclick: () => history.back() }, 'العودة')
+                ));
+                return;
+            }
+
             contentArea.append(elt('h2', { style: 'margin-bottom: 30px; text-align: center;' }, 'اختبار الدرس'));
 
             quizData.forEach((q, qIndex) => {
@@ -96,31 +104,38 @@ window.LessonView = async function (lessonId) {
             const submitBtn = elt('button', {
                 className: 'btn btn-primary',
                 style: 'width: 100%; margin-top: 20px;'
-            }, 'إرسال الإجابات');
+            }, 'إنهاء الاختبار وإرسال الإجابات');
 
-            submitBtn.onclick = () => {
+            submitBtn.onclick = async () => {
                 let score = 0;
+                let answeredCount = 0;
                 quizData.forEach((q, i) => {
                     const selected = document.querySelector(`input[name="q${i}"]:checked`);
-                    if (selected && parseInt(selected.value) === q.correct) score++;
+                    if (selected) {
+                        answeredCount++;
+                        if (parseInt(selected.value) === q.correct) score++;
+                    }
                 });
 
-                showNotification(`لقد حصلت على ${score} من ${quizData.length}`);
+                if (answeredCount < quizData.length) return showNotification('يرجى الإجابة على جميع الأسئلة', 'error');
 
-                // نتيجة الاختبار
+                // Record Attempt
+                await window.store.recordQuizAttempt(session.code, lessonId, score);
+
                 contentArea.innerHTML = '';
                 contentArea.append(
                     elt('div', { style: 'text-align:center; padding: 40px;' },
                         elt('h2', {}, 'نتيجة الاختبار'),
                         elt('div', { style: 'font-size: 4rem; font-weight: bold; color: var(--primary-color); margin: 20px 0;' }, `${Math.round((score / quizData.length) * 100)}%`),
                         elt('p', {}, `لقد أجبت بشكل صحيح على ${score} من إجمالي ${quizData.length} سؤال`),
-                        elt('button', { className: 'btn btn-outline', style: 'margin-top: 30px;', onclick: () => renderQuiz() }, 'إعادة المحاولة')
+                        elt('button', { className: 'btn btn-primary', style: 'margin-top: 30px;', onclick: () => history.back() }, 'إغلاق الاختبار'),
+                        (attempts?.attempts_count || 0) < 1 ? elt('p', { style: 'margin-top:20px; font-size:0.8rem; color:var(--text-muted);' }, 'لديك محاولة واحدة إضافية فقط.') : null
                     )
                 );
             };
             contentArea.append(submitBtn);
         };
-        renderQuiz();
+        await renderQuiz();
     }
 
     container.append(contentArea);

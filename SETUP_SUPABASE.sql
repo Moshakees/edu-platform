@@ -66,5 +66,17 @@ ALTER TABLE public.lessons DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.codes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.slider DISABLE ROW LEVEL SECURITY;
 
+-- جدول محاولات الاختبارات
+CREATE TABLE IF NOT EXISTS public.quiz_attempts (
+    id SERIAL PRIMARY KEY,
+    code TEXT NOT NULL,
+    lesson_id INTEGER REFERENCES public.lessons(id) ON DELETE CASCADE,
+    attempts_count INTEGER DEFAULT 1,
+    last_score INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(code, lesson_id)
+);
+ALTER TABLE public.quiz_attempts DISABLE ROW LEVEL SECURITY;
+
 -- 4. إضافة بيانات تجريبية (اختياري)
 -- INSERT INTO public.subjects (title, image) VALUES ('الرياضيات', 'https://cdn-icons-png.flaticon.com/512/2997/2997108.png') ON CONFLICT DO NOTHING;

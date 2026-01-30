@@ -172,15 +172,84 @@ async function renderContentTab(container) {
         });
 
         const btn = elt('button', { className: 'btn btn-primary' }, 'إضافة');
+
+        let quizBuilder = null;
+        let quizData = [];
+
         btn.onclick = async () => {
             const data = {};
             inputs.forEach(i => data[i.key] = i.input.value);
+
+            if (title === '4. إضافة درس' && data.type === 'quiz') {
+                if (quizData.length === 0) return showNotification('يجب إضافة سؤال واحد على الأقل', 'error');
+                data.content = quizData;
+            }
+
             await onSubmit(data);
             showNotification('تمت الإضافة بنجاح');
             renderContentTab(container);
         };
+
         form.append(...inputs.map(i => i.input.parentElement), btn);
         panel.append(form);
+
+        // إضافة واجهة بناء الاختبار إذا كان القسم هو إضافة درس
+        if (title === '4. إضافة درس') {
+            const typeSelect = inputs.find(i => i.key === 'type').input;
+            const contentInput = inputs.find(i => i.key === 'content').input;
+            quizBuilder = elt('div', { style: 'display:none; margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;' });
+
+            const renderBuilder = () => {
+                quizBuilder.innerHTML = '';
+                quizBuilder.append(elt('h4', { style: 'margin-bottom:10px;' }, 'باني الاختبارات (Quiz Builder)'));
+
+                quizData.forEach((q, idx) => {
+                    quizBuilder.append(elt('div', { style: 'background:rgba(255,255,255,0.05); padding:10px; margin-bottom:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;' },
+                        elt('span', {}, `${idx + 1}. ${q.question}`),
+                        elt('button', { style: 'color:#ef4444; background:none; border:none; cursor:pointer;', onclick: () => { quizData.splice(idx, 1); renderBuilder(); } }, 'حذف')
+                    ));
+                });
+
+                const qInput = elt('input', { placeholder: 'السؤال' });
+                const optInputs = [elt('input', { placeholder: 'الاخلتيار 1' }), elt('input', { placeholder: 'الاختيار 2' }), elt('input', { placeholder: 'الاختيار 3' }), elt('input', { placeholder: 'الاختيار 4' })];
+                const correctInput = elt('select', {},
+                    elt('option', { value: 0 }, 'الاختيار 1 هو الصحيح'),
+                    elt('option', { value: 1 }, 'الاختيار 2 هو الصحيح'),
+                    elt('option', { value: 2 }, 'الاختيار 3 هو الصحيح'),
+                    elt('option', { value: 3 }, 'الاختيار 4 هو الصحيح')
+                );
+                const addQBtn = elt('button', { className: 'btn btn-outline', style: 'margin-top:10px;' }, 'إضافة سؤال للقائمة');
+
+                addQBtn.onclick = () => {
+                    if (!qInput.value || optInputs.some(i => !i.value)) return showNotification('أكمل بيانات السؤال', 'error');
+                    quizData.push({
+                        question: qInput.value,
+                        options: optInputs.map(i => i.value),
+                        correct: parseInt(correctInput.value)
+                    });
+                    renderBuilder();
+                };
+
+                const qForm = elt('div', { style: 'display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;' },
+                    elt('div', { style: 'grid-column: span 2' }, qInput),
+                    ...optInputs,
+                    elt('div', { style: 'grid-column: span 2' }, correctInput)
+                );
+                quizBuilder.append(qForm, addQBtn);
+            };
+
+            typeSelect.onchange = () => {
+                if (typeSelect.value === 'quiz') {
+                    contentInput.parentElement.style.display = 'none';
+                    quizBuilder.style.display = 'block';
+                    renderBuilder();
+                } else {
+                    contentInput.parentElement.style.display = 'block';
+                    quizBuilder.style.display = 'none';
+                }
+            };
+            panel.append(quizBuilder);
+        }
         return panel;
     };
 

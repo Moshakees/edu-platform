@@ -124,6 +124,23 @@
         async getTeachers(sid) { const { data } = await supabase.from('teachers').select('*').eq('subject_id', sid); return data || []; }
         async getTeacherUnits(tid) { const { data } = await supabase.from('units').select('*, lessons(*)').eq('teacher_id', tid); return data || []; }
         async getLesson(id) { const { data } = await supabase.from('lessons').select('*').eq('id', id).single(); return data; }
+
+        async getQuizAttempts(code, lessonId) {
+            const { data } = await supabase.from('quiz_attempts').select('*').eq('code', code).eq('lesson_id', lessonId).single();
+            return data;
+        }
+
+        async recordQuizAttempt(code, lessonId, score) {
+            const existing = await this.getQuizAttempts(code, lessonId);
+            if (existing) {
+                await supabase.from('quiz_attempts').update({
+                    attempts_count: existing.attempts_count + 1,
+                    last_score: score
+                }).eq('id', existing.id);
+            } else {
+                await supabase.from('quiz_attempts').insert([{ code, lesson_id: lessonId, last_score: score, attempts_count: 1 }]);
+            }
+        }
         async getSliderImages() { const { data } = await supabase.from('slider').select('*'); return data || []; }
         async addSliderImage(u) { await supabase.from('slider').insert([{ image_url: u }]); }
         async deleteSliderImage(id) { await supabase.from('slider').delete().eq('id', id); }
