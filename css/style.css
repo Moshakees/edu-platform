@@ -359,3 +359,48 @@ textarea:focus {
     background-repeat: no-repeat;
     transition: opacity 1s ease-in-out;
 }
+
+/* Spinner for Loading */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Badges */
+.badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--surface-border);
+    color: var(--text-color);
+}
+
+.badge-success {
+    background: #10b981;
+}
+
+.badge-error {
+    background: #ef4444;
+}
+
+.badge-warning {
+    background: #f59e0b;
+}
+
+/* Admin Tabs Scroll Fix */
+#admin-content {
+    margin-top: 20px;
+}
