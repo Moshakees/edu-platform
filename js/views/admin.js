@@ -323,7 +323,68 @@ function renderContentTab(container) {
         window.store.save(db);
     }));
 
-    container.append(elt('p', { style: 'color: var(--text-muted); font-size: 0.8rem; margin-top: 10px;' },
+    container.append(elt('p', { style: 'color: var(--text-muted); font-size: 0.8rem; margin-top: 10px; margin-bottom: 40px;' },
         'ملاحظة: لإضافة اختبار، يجب أن يكون المحتوى بتنسيق JSON. مثال: [{"question":"سؤال؟","options":["إجابة1","إجابة2"],"correct":0}]'
     ));
+
+    // --- قسم إدارة المحتوى الحالي ---
+    const managementTitle = elt('h2', { style: 'margin-bottom: 20px;' }, 'إدارة المحتوى الحالي');
+    container.append(managementTitle);
+
+    const renderManagement = () => {
+        const db = window.store.db;
+
+        // المواد
+        const subjectsPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' },
+            elt('h3', { style: 'margin-bottom: 10px;' }, 'المواد الدراسية'),
+            elt('div', { style: 'display: flex; flex-direction: column; gap: 10px;' },
+                ...db.subjects.map(s => elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;' },
+                    elt('span', {}, s.title),
+                    elt('button', { className: 'btn btn-outline', style: 'color: #ef4444; border-color: #ef4444; padding: 5px 10px;', onclick: () => { if (confirm('حذف المادة سيحذف كل المدرسين والدروس التابعة لها. هل أنت متأكد؟')) { window.store.deleteSubject(s.id); renderContentTab(container); } } }, 'حذف')
+                ))
+            )
+        );
+
+        // المدرسين
+        const teachersPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' },
+            elt('h3', { style: 'margin-bottom: 10px;' }, 'المدرسين'),
+            elt('div', { style: 'display: flex; flex-direction: column; gap: 10px;' },
+                ...db.teachers.map(t => {
+                    const subject = db.subjects.find(s => s.id == t.subjectId);
+                    return elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;' },
+                        elt('span', {}, `${t.name} (${subject?.title || '?'})`),
+                        elt('button', { className: 'btn btn-outline', style: 'color: #ef4444; border-color: #ef4444; padding: 5px 10px;', onclick: () => { if (confirm('هل أنت متأكد من حذف المدرس؟')) { window.store.deleteTeacher(t.id); renderContentTab(container); } } }, 'حذف')
+                    );
+                })
+            )
+        );
+
+        // الوحدات والدروس
+        const lessonsPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' },
+            elt('h3', { style: 'margin-bottom: 10px;' }, 'الوحدات والدروس'),
+            elt('div', { style: 'display: flex; flex-direction: column; gap: 15px;' },
+                ...db.units.map(u => {
+                    const teacher = db.teachers.find(t => t.id == u.teacherId);
+                    const lessons = db.lessons.filter(l => l.unitId == u.id);
+                    return elt('div', { style: 'padding: 15px; border: 1px solid var(--surface-border); border-radius: 12px;' },
+                        elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;' },
+                            elt('strong', {}, `الوحدة: ${u.title} (مدرس: ${teacher?.name || '?'})`),
+                            elt('button', { className: 'btn btn-outline', style: 'font-size: 0.8rem; padding: 2px 8px;', onclick: () => { if (confirm('حذف الوحدة سيحذف كل دروسها. متأكد؟')) { window.store.deleteUnit(u.id); renderContentTab(container); } } }, 'حذف الوحدة')
+                        ),
+                        elt('div', { style: 'padding-right: 20px; border-right: 2px solid var(--primary-color);' },
+                            ...lessons.map(l => elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);' },
+                                elt('span', { style: 'font-size: 0.9rem;' }, `• ${l.title} (${l.type})`),
+                                elt('button', { style: 'background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.8rem;', onclick: () => { if (confirm('حذف الدرس؟')) { window.store.deleteLesson(l.id); renderContentTab(container); } } }, 'حذف')
+                            ))
+                        )
+                    );
+                })
+            )
+        );
+
+        container.append(subjectsPanel, teachersPanel, lessonsPanel);
+    };
+
+    renderManagement();
 }
+

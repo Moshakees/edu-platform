@@ -190,6 +190,37 @@
             db.teachers.push({ id: Date.now(), subjectId: parseInt(subjectId), name, image, bio });
             this.save(db);
         }
+
+        // Delete Methods
+        deleteSubject(id) {
+            const db = this.db;
+            db.subjects = db.subjects.filter(s => s.id != id);
+            // Cascading delete
+            const teachersToDelete = db.teachers.filter(t => t.subjectId == id).map(t => t.id);
+            teachersToDelete.forEach(tid => this.deleteTeacher(tid));
+            this.save(db);
+        }
+
+        deleteTeacher(id) {
+            const db = this.db;
+            db.teachers = db.teachers.filter(t => t.id != id);
+            const unitsToDelete = db.units.filter(u => u.teacherId == id).map(u => u.id);
+            unitsToDelete.forEach(uid => this.deleteUnit(uid));
+            this.save(db);
+        }
+
+        deleteUnit(id) {
+            const db = this.db;
+            db.units = db.units.filter(u => u.id != id);
+            db.lessons = db.lessons.filter(l => l.unitId != id);
+            this.save(db);
+        }
+
+        deleteLesson(id) {
+            const db = this.db;
+            db.lessons = db.lessons.filter(l => l.id != id);
+            this.save(db);
+        }
     }
 
     window.store = new Store();
