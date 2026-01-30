@@ -42,6 +42,9 @@
         }
 
         async login(codeStr) {
+            // مسح أي جلسة قديمة فوراً لتجنب التضارب
+            localStorage.removeItem(SESSION_KEY);
+
             if (codeStr === 'admin123') {
                 const session = { role: 'admin', name: 'المسؤول', expiry: Date.now() + 86400000 };
                 localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -49,16 +52,16 @@
             }
 
             const { data: code, error } = await supabase.from('codes').select('*').eq('code', codeStr).single();
-            if (error || !code) return { success: false, message: 'كود غير صحيح' };
+            if (error || !code) return { success: false, message: 'كود غير صحيح أو لا يوجد اتصال' };
 
-            // 1. التحقق من الحظر
-            if (code.status === 'banned') return { success: false, message: 'تم حظر هذا الكود من قبل الإدارة' };
-            if (code.status === 'expired') return { success: false, message: 'انتهت صلاحية هذا الكود' };
+            if (code.status === 'banned') return { success: false, message: 'هذا الكود محظور حالياً' };
 
-            // 2. تفعيل كود جديد
-            if (code.status === 'new') {
+            // تفعيل كود جديد أو مجدد (حالة New)
+            if (code.status === 'new' || code.status === 'expired') {
                 const now = new Date();
-                const expiry = new Date(now.getTime() + (code.duration_days * 24 * 60 * 60 * 1000));
+                const days = parseInt(code.duration_days) || 30;
+                const expiry = new Date(now.getTime() + (days * 24 * 60 * 60 * 1000));
+
                 await supabase.from('codes').update({
                     status: 'active',
                     activation_date: now.toISOString(),
@@ -70,19 +73,19 @@
                 return { success: true, role: 'student' };
             }
 
-            // 3. كود نشط (الاستخدام لمرة واحدة)
+            // كود نشط (Active)
             if (code.status === 'active') {
                 const expiryTime = new Date(code.expiry_date).getTime();
                 if (Date.now() > expiryTime) {
                     await supabase.from('codes').update({ status: 'expired' }).eq('code', codeStr);
-                    return { success: false, message: 'انتهت صلاحية الكود' };
+                    return { success: false, message: 'هذا الكود انتهت صلاحيته، يرجى التجديد' };
                 }
 
                 const session = { role: 'student', code: code.code, name: code.name, expiry: expiryTime };
                 localStorage.setItem(SESSION_KEY, JSON.stringify(session));
                 return { success: true, role: 'student' };
             }
-            return { success: false, message: 'حالة الكود غير معروفة' };
+            return { success: false, message: 'حالة الكود غير صالحة' };
         }
 
         // فحص "حي" لحالة المستخدم عند كل حركة في الموقع
