@@ -1,10 +1,8 @@
 // Admin View
-window.AdminView = function () {
+window.AdminView = async function () {
     const elt = window.Utils.elt;
-    const showNotification = window.Utils.showNotification;
-    const formatDate = window.Utils.formatDate;
-
     const session = window.store.checkSession();
+
     if (!session || session.role !== 'admin') {
         window.location.hash = '#login';
         return elt('div');
@@ -13,7 +11,7 @@ window.AdminView = function () {
     const container = elt('div', { className: 'container page-transition', style: 'padding-top: 40px; padding-bottom: 60px;' });
 
     const header = elt('header', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;' },
-        elt('h1', {}, 'لوحة التحكم'),
+        elt('h1', {}, 'لوحة التحكم (Live)'),
         elt('button', { className: 'btn btn-outline', onclick: () => window.store.logout() }, 'تسجيل الخروج')
     );
 
@@ -22,7 +20,6 @@ window.AdminView = function () {
     const tabContent = elt('button', { className: 'btn btn-outline' }, 'إدارة المحتوى');
 
     tabs.append(tabCodes, tabContent);
-
     const contentArea = elt('div', { id: 'admin-content' });
 
     const switchTab = (activeBtn) => {
@@ -34,357 +31,197 @@ window.AdminView = function () {
         contentArea.innerHTML = '';
     };
 
-    tabCodes.onclick = () => {
+    tabCodes.onclick = async () => {
         switchTab(tabCodes);
-        renderCodesTab(contentArea);
+        await renderCodesTab(contentArea);
     };
 
-    tabContent.onclick = () => {
+    tabContent.onclick = async () => {
         switchTab(tabContent);
-        renderContentTab(contentArea);
+        await renderContentTab(contentArea);
     };
 
+    // التشغيل الافتراضي
     tabCodes.click();
 
     container.append(header, tabs, contentArea);
     return container;
 };
 
-function renderCodesTab(container) {
+async function renderCodesTab(container) {
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
     const formatDate = window.Utils.formatDate;
 
-    // نموذج إنشاء كود جديد
+    // نموذج التوليد
     const form = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;' });
-
     const nameInput = elt('div', { style: 'flex: 1; min-width: 200px;' },
         elt('label', { style: 'display: block; margin-bottom: 5px;' }, 'اسم الطالب'),
         elt('input', { type: 'text', placeholder: 'مثال: أحمد محمد' })
     );
-
     const daysInput = elt('div', { style: 'width: 150px;' },
         elt('label', { style: 'display: block; margin-bottom: 5px;' }, 'المدة (أيام)'),
         elt('input', { type: 'number', value: '30' })
     );
-
     const genBtn = elt('button', { className: 'btn btn-primary', style: 'height: 48px;' }, 'توليد كود جديد');
 
-    genBtn.onclick = () => {
+    genBtn.onclick = async () => {
         const name = nameInput.lastChild.value;
         const days = daysInput.lastChild.value;
         if (!name || !days) return showNotification('جميع الحقول مطلوبة', 'error');
-
-        const code = window.store.generateCode(name, days);
-        showNotification(`تم إنشاء الكود بنجاح: ${code.code}`);
+        await window.store.generateCode(name, days);
+        showNotification('تم إنشاء الكود بنجاح');
         nameInput.lastChild.value = '';
         refreshList();
     };
-
     form.append(nameInput, daysInput, genBtn);
 
-    // خانة البحث
+    // البحث والجدول
     const searchPanel = elt('div', { className: 'glass-panel', style: 'padding: 15px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center;' });
+    const searchInput = elt('input', { type: 'text', placeholder: 'ابحث عن مستخدم بالكود أو الاسم...', style: 'flex: 1; direction: ltr;' });
+    searchPanel.append(elt('ion-icon', { name: 'search-outline' }), searchInput);
 
-    const searchIcon = elt('ion-icon', { name: 'search-outline', style: 'font-size: 1.5rem; color: var(--primary-color);' });
-
-    const searchInput = elt('input', {
-        type: 'text',
-        placeholder: 'ابحث عن مستخدم بالكود أو الاسم...',
-        style: 'flex: 1; direction: ltr;'
-    });
-
-    searchInput.oninput = () => refreshList(searchInput.value);
-
-    searchPanel.append(searchIcon, searchInput);
-
-    // جدول الأكواد
     const tableContainer = elt('div', { className: 'glass-panel', style: 'overflow-x: auto;' });
-    const table = elt('table', { style: 'width: 100%; border-collapse: collapse; min-width: 700px;' });
-
-    const thead = elt('thead', {},
-        elt('tr', { style: 'background: rgba(255,255,255,0.05); text-align: right;' },
-            elt('th', { style: 'padding: 15px;' }, 'الكود'),
-            elt('th', { style: 'padding: 15px;' }, 'الاسم'),
-            elt('th', { style: 'padding: 15px;' }, 'الحالة'),
-            elt('th', { style: 'padding: 15px;' }, 'تاريخ التفعيل'),
-            elt('th', { style: 'padding: 15px;' }, 'تاريخ الانتهاء'),
-            elt('th', { style: 'padding: 15px; min-width: 200px;' }, 'إجراءات')
-        )
-    );
-
     const tbody = elt('tbody');
 
-    const refreshList = (searchTerm = '') => {
-        tbody.innerHTML = '';
-        let codes = window.store.getCodes().reverse();
+    const refreshList = async (searchTerm = '') => {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">جاري التحميل...</td></tr>';
+        let codes = await window.store.getCodes();
 
-        // تطبيق البحث
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            codes = codes.filter(c =>
-                c.code.toLowerCase().includes(term) ||
-                c.name.toLowerCase().includes(term)
-            );
+            codes = codes.filter(c => c.code.includes(term) || c.name.toLowerCase().includes(term));
         }
 
-        if (codes.length === 0) {
-            const emptyRow = elt('tr', {},
-                elt('td', { colspan: '6', style: 'padding: 40px; text-align: center; color: var(--text-muted);' },
-                    searchTerm ? 'لا توجد نتائج للبحث' : 'لا توجد أكواد مُنشأة بعد'
-                )
-            );
-            tbody.append(emptyRow);
-            return;
-        }
-
+        tbody.innerHTML = '';
         codes.forEach(c => {
             const tr = elt('tr', { style: 'border-bottom: 1px solid var(--surface-border);' });
 
-            let statusColor = '#94a3b8';
-            if (c.status === 'active') statusColor = '#10b981';
-            if (c.status === 'expired') statusColor = '#f59e0b';
-            if (c.status === 'banned') statusColor = '#ef4444';
-
-            // زر الحظر/فك الحظر
-            const banBtn = elt('button', {
-                className: 'btn btn-outline',
-                style: 'padding: 5px 10px; font-size: 0.8rem; margin-left: 5px;'
-            }, c.status === 'banned' ? 'فك الحظر' : 'حظر');
-
-            banBtn.onclick = () => {
-                window.store.updateCodeStatus(c.code, c.status === 'banned' ? (c.activationDate ? 'active' : 'new') : 'banned');
-                showNotification(c.status === 'banned' ? 'تم فك الحظر' : 'تم حظر الكود');
+            const banBtn = elt('button', { className: 'btn btn-outline', style: 'font-size: 0.8rem;' }, c.status === 'banned' ? 'فك الحظر' : 'حظر');
+            banBtn.onclick = async () => {
+                await window.store.updateCodeStatus(c.code, c.status === 'banned' ? (c.activation_date ? 'active' : 'new') : 'banned');
                 refreshList(searchInput.value);
             };
 
-            // زر التجديد
-            const renewBtn = elt('button', {
-                className: 'btn btn-primary',
-                style: 'padding: 5px 10px; font-size: 0.8rem;'
-            }, 'تجديد');
-
-            renewBtn.onclick = () => {
-                const days = prompt('كم يوم تريد إضافتها؟', '30');
-                if (days && !isNaN(days) && parseInt(days) > 0) {
-                    const success = window.store.renewCode(c.code, parseInt(days));
-                    if (success) {
-                        showNotification(`تم تجديد الكود بنجاح! تمت إضافة ${days} يوم`);
-                        refreshList(searchInput.value);
-                    } else {
-                        showNotification('فشل التجديد', 'error');
-                    }
-                }
+            const renewBtn = elt('button', { className: 'btn btn-primary', style: 'font-size: 0.8rem; margin-right: 5px;' }, 'تجديد');
+            renewBtn.onclick = async () => {
+                const d = prompt('أيام الإضافة؟', '30');
+                if (d) { await window.store.renewCode(c.code, d); refreshList(searchInput.value); }
             };
 
-            const actionsCell = elt('td', { style: 'padding: 15px; display: flex; gap: 5px; flex-wrap: wrap;' });
-            actionsCell.append(renewBtn, banBtn);
+            const actions = elt('td', { style: 'padding: 15px;' });
+            actions.append(renewBtn, banBtn);
 
             tr.append(
                 elt('td', { style: 'padding: 15px; font-weight: bold; font-family: monospace; direction: ltr;' }, c.code),
                 elt('td', { style: 'padding: 15px;' }, c.name),
-                elt('td', { style: 'padding: 15px; color: ' + statusColor }, translateStatus(c.status)),
-                elt('td', { style: 'padding: 15px;' }, formatDate(c.activationDate)),
-                elt('td', { style: 'padding: 15px;' }, formatDate(c.expiryDate)),
-                actionsCell
+                elt('td', { style: 'padding: 15px;' }, c.status),
+                elt('td', { style: 'padding: 15px;' }, formatDate(c.activation_date)),
+                elt('td', { style: 'padding: 15px;' }, formatDate(c.expiry_date)),
+                actions
             );
             tbody.append(tr);
         });
     };
 
-    refreshList();
-    table.append(thead, tbody);
-    tableContainer.append(table);
+    searchInput.oninput = () => refreshList(searchInput.value);
 
+    const table = elt('table', { style: 'width: 100%; border-collapse: collapse; min-width: 700px;' },
+        elt('thead', {}, elt('tr', {},
+            elt('th', { style: 'padding:15px;text-align:right' }, 'الكود'),
+            elt('th', { style: 'padding:15px;text-align:right' }, 'الاسم'),
+            elt('th', { style: 'padding:15px;text-align:right' }, 'الحالة'),
+            elt('th', { style: 'padding:15px;text-align:right' }, 'التفعيل'),
+            elt('th', { style: 'padding:15px;text-align:right' }, 'الانتهاء'),
+            elt('th', { style: 'padding:15px;text-align:right' }, 'إجراءات')
+        )),
+        tbody
+    );
+
+    refreshList();
+    tableContainer.append(table);
     container.append(form, searchPanel, tableContainer);
 }
 
-
-function translateStatus(s) {
-    const map = { 'new': 'جديد', 'active': 'نشط', 'expired': 'منتهي', 'banned': 'محظور' };
-    return map[s] || s;
-}
-
-function renderContentTab(container) {
+async function renderContentTab(container) {
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
 
-    const createSection = (title, formFields, onSubmit) => {
+    container.innerHTML = '<p style="text-align:center;">جاري تحميل المحتوى...</p>';
+    const db = await window.store.fetchAllData();
+    container.innerHTML = '';
+
+    const createSection = (title, fields, onSubmit) => {
         const panel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' },
             elt('h3', { style: 'margin-bottom: 15px;' }, title)
         );
         const form = elt('div', { style: 'display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;' });
 
-        const inputs = formFields.map(f => {
-            const div = elt('div', { style: `flex: ${f.width || '1'}; min-width: 150px;` },
-                elt('label', { style: 'display: block; margin-bottom: 5px; font-size: 0.9rem;' }, f.label)
-            );
+        const inputs = fields.map(f => {
+            const d = elt('div', { style: 'flex: 1; min-width: 150px;' }, elt('label', { style: 'display:block;margin-bottom:5px;font-size:0.8rem;' }, f.label));
             let input;
             if (f.type === 'select') {
                 input = elt('select', {});
-                f.options && f.options.forEach(o => input.append(elt('option', { value: o.value }, o.text)));
-                f.refresh = () => {
-                    input.innerHTML = '';
-                    if (f.getOptions) f.getOptions().forEach(o => input.append(elt('option', { value: o.value }, o.text)));
-                };
-                if (f.getOptions) f.refresh();
+                f.options().forEach(o => input.append(elt('option', { value: o.id }, o.title)));
             } else {
-                input = elt('input', { type: f.type || 'text', placeholder: f.placeholder || '' });
+                input = elt('input', { type: f.type || 'text', placeholder: f.placeholder });
             }
-            div.append(input);
-            return { div, input, key: f.key, refresh: f.refresh };
+            d.append(input);
+            return { key: f.key, input };
         });
 
         const btn = elt('button', { className: 'btn btn-primary' }, 'إضافة');
-        btn.onclick = () => {
+        btn.onclick = async () => {
             const data = {};
             inputs.forEach(i => data[i.key] = i.input.value);
-            onSubmit(data);
-            inputs.forEach(i => { if (i.input.tagName === 'INPUT') i.input.value = '' });
-            document.querySelectorAll('select').forEach(s => {
-                // Trigger global refresh? No, just rely on user action or reload for now.
-                // Or re-render simplified:
-            });
+            await onSubmit(data);
             showNotification('تمت الإضافة بنجاح');
-            // Re-render tab to update lists in selects
             renderContentTab(container);
         };
 
-        form.append(...inputs.map(i => i.div), btn);
+        form.append(...inputs.map(i => i.input.parentElement), btn);
         panel.append(form);
         return panel;
     };
 
-    container.innerHTML = ''; // clear old
+    // نموذج المواد
+    container.append(createSection('1. إضافة مادة', [{ label: 'اسم المادة', key: 'title' }, { label: 'رابط الصورة', key: 'image' }],
+        d => window.store.addSubject(d.title, d.image)));
 
-    const db = window.store.db;
-
-    container.append(createSection('1. إضافة مادة', [
-        { label: 'اسم المادة', key: 'title' },
-        { label: 'رابط الصورة', key: 'image', placeholder: 'https://...' }
-    ], (data) => window.store.addSubject(data.title, data.image)));
-
+    // المدرسين
     container.append(createSection('2. إضافة مدرس', [
-        {
-            label: 'المادة', key: 'subjectId', type: 'select',
-            getOptions: () => window.store.db.subjects.map(s => ({ value: s.id, text: s.title }))
-        },
+        { label: 'المادة', key: 'subjectId', type: 'select', options: () => db.subjects },
         { label: 'اسم المدرس', key: 'name' },
         { label: 'رابط الصورة', key: 'image' },
-        { label: 'نبذة مختصرة', key: 'bio' }
-    ], (d) => window.store.addTeacher(d.subjectId, d.name, d.image, d.bio)));
+        { label: 'نبذة', key: 'bio' }
+    ], d => window.store.addTeacher(d.subjectId, d.name, d.image, d.bio)));
 
-    container.append(createSection('3. إضافة وحدة دراسية', [
-        {
-            label: 'المدرس', key: 'teacherId', type: 'select',
-            getOptions: () => window.store.db.teachers.map(t => ({ value: t.id, text: `${t.name} (${window.store.db.subjects.find(s => s.id == t.subjectId)?.title || '?'})` }))
-        },
+    // الوحدات
+    container.append(createSection('3. إضافة وحدة', [
+        { label: 'المدرس', key: 'teacherId', type: 'select', options: () => db.teachers },
         { label: 'عنوان الوحدة', key: 'title' }
-    ], (d) => {
-        const db = window.store.db;
-        db.units.push({ id: Date.now(), teacherId: parseInt(d.teacherId), title: d.title });
-        window.store.save(db);
-    }));
+    ], d => window.store.addUnit(d.teacherId, d.title)));
 
-    container.append(createSection('4. إضافة درس / محتوى', [
-        {
-            label: 'الوحدة', key: 'unitId', type: 'select',
-            getOptions: () => window.store.db.units.map(u => ({ value: u.id, text: u.title }))
-        },
-        { label: 'عنوان الدرس', key: 'title' },
-        {
-            label: 'النوع', key: 'type', type: 'select',
-            options: [{ value: 'video', text: 'فيديو' }, { value: 'file', text: 'ملف' }, { value: 'quiz', text: 'اختبار' }],
-            getOptions: () => [{ value: 'video', text: 'فيديو' }, { value: 'file', text: 'ملف' }, { value: 'quiz', text: 'اختبار' }]
-        },
-        { label: 'المحتوي (رابط فيديو / ملف)', key: 'content', placeholder: 'رابط أو JSON للإختبار' }
-    ], (d) => {
-        const db = window.store.db;
+    // الدروس
+    container.append(createSection('4. إضافة درس', [
+        { label: 'الوحدة', key: 'unitId', type: 'select', options: () => db.units },
+        { label: 'العنوان', key: 'title' },
+        { label: 'النوع', key: 'type', type: 'select', options: () => [{ id: 'video', title: 'فيديو' }, { id: 'file', title: 'ملف' }, { id: 'quiz', title: 'اختبار' }] },
+        { label: 'المحتوي', key: 'content' }
+    ], d => {
         let content = d.content;
-        if (d.type === 'quiz') {
-            try {
-                if (!content.startsWith('[')) {
-                    content = [{ question: 'سؤال تجريبي', options: ['أ', 'ب', 'ج', 'د'], correct: 0 }];
-                } else {
-                    content = JSON.parse(content);
-                }
-            } catch (e) {
-                return showNotification('خطأ في تنسيق الاختبار JSON', 'error');
-            }
-        }
-
-        db.lessons.push({
-            id: Date.now(),
-            unitId: parseInt(d.unitId),
-            title: d.title,
-            type: d.type,
-            content: content
-        });
-        window.store.save(db);
+        if (d.type === 'quiz') content = JSON.parse(content || '[]');
+        return window.store.addLesson(d.unitId, d.title, d.type, content);
     }));
 
-    container.append(elt('p', { style: 'color: var(--text-muted); font-size: 0.8rem; margin-top: 10px; margin-bottom: 40px;' },
-        'ملاحظة: لإضافة اختبار، يجب أن يكون المحتوى بتنسيق JSON. مثال: [{"question":"سؤال؟","options":["إجابة1","إجابة2"],"correct":0}]'
-    ));
-
-    // --- قسم إدارة المحتوى الحالي ---
-    const managementTitle = elt('h2', { style: 'margin-bottom: 20px;' }, 'إدارة المحتوى الحالي');
-    container.append(managementTitle);
-
-    const renderManagement = () => {
-        const db = window.store.db;
-
-        // المواد
-        const subjectsPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' },
-            elt('h3', { style: 'margin-bottom: 10px;' }, 'المواد الدراسية'),
-            elt('div', { style: 'display: flex; flex-direction: column; gap: 10px;' },
-                ...db.subjects.map(s => elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;' },
-                    elt('span', {}, s.title),
-                    elt('button', { className: 'btn btn-outline', style: 'color: #ef4444; border-color: #ef4444; padding: 5px 10px;', onclick: () => { if (confirm('حذف المادة سيحذف كل المدرسين والدروس التابعة لها. هل أنت متأكد؟')) { window.store.deleteSubject(s.id); renderContentTab(container); } } }, 'حذف')
-                ))
-            )
+    // إدارة الحذف
+    const manageArea = elt('div', { style: 'margin-top: 40px;' }, elt('h2', {}, 'إدارة المحتوى الحالي'));
+    db.subjects.forEach(s => {
+        const item = elt('div', { className: 'glass-panel', style: 'padding: 10px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;' },
+            elt('span', {}, `المادة: ${s.title}`),
+            elt('button', { className: 'btn btn-outline', style: 'color:red; border-color:red; font-size:0.8rem;', onclick: async () => { if (confirm('متأكد؟')) { await window.store.deleteSubject(s.id); renderContentTab(container); } } }, 'حذف')
         );
-
-        // المدرسين
-        const teachersPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' },
-            elt('h3', { style: 'margin-bottom: 10px;' }, 'المدرسين'),
-            elt('div', { style: 'display: flex; flex-direction: column; gap: 10px;' },
-                ...db.teachers.map(t => {
-                    const subject = db.subjects.find(s => s.id == t.subjectId);
-                    return elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;' },
-                        elt('span', {}, `${t.name} (${subject?.title || '?'})`),
-                        elt('button', { className: 'btn btn-outline', style: 'color: #ef4444; border-color: #ef4444; padding: 5px 10px;', onclick: () => { if (confirm('هل أنت متأكد من حذف المدرس؟')) { window.store.deleteTeacher(t.id); renderContentTab(container); } } }, 'حذف')
-                    );
-                })
-            )
-        );
-
-        // الوحدات والدروس
-        const lessonsPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' },
-            elt('h3', { style: 'margin-bottom: 10px;' }, 'الوحدات والدروس'),
-            elt('div', { style: 'display: flex; flex-direction: column; gap: 15px;' },
-                ...db.units.map(u => {
-                    const teacher = db.teachers.find(t => t.id == u.teacherId);
-                    const lessons = db.lessons.filter(l => l.unitId == u.id);
-                    return elt('div', { style: 'padding: 15px; border: 1px solid var(--surface-border); border-radius: 12px;' },
-                        elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;' },
-                            elt('strong', {}, `الوحدة: ${u.title} (مدرس: ${teacher?.name || '?'})`),
-                            elt('button', { className: 'btn btn-outline', style: 'font-size: 0.8rem; padding: 2px 8px;', onclick: () => { if (confirm('حذف الوحدة سيحذف كل دروسها. متأكد؟')) { window.store.deleteUnit(u.id); renderContentTab(container); } } }, 'حذف الوحدة')
-                        ),
-                        elt('div', { style: 'padding-right: 20px; border-right: 2px solid var(--primary-color);' },
-                            ...lessons.map(l => elt('div', { style: 'display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);' },
-                                elt('span', { style: 'font-size: 0.9rem;' }, `• ${l.title} (${l.type})`),
-                                elt('button', { style: 'background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.8rem;', onclick: () => { if (confirm('حذف الدرس؟')) { window.store.deleteLesson(l.id); renderContentTab(container); } } }, 'حذف')
-                            ))
-                        )
-                    );
-                })
-            )
-        );
-
-        container.append(subjectsPanel, teachersPanel, lessonsPanel);
-    };
-
-    renderManagement();
+        manageArea.append(item);
+    });
+    container.append(manageArea);
 }
-

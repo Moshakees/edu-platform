@@ -3,44 +3,44 @@ window.LoginView = function () {
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
 
-    const container = elt('div', { className: 'login-container' });
+    const container = elt('div', { className: 'login-container page-transition' },
+        elt('div', { className: 'glass-panel', style: 'width: 100%; max-width: 400px; padding: 40px; text-align: center;' },
+            elt('h1', { style: 'margin-bottom: 30px;' }, 'تسجيل الدخول'),
+            elt('div', { style: 'margin-bottom: 20px;' },
+                elt('label', { style: 'display: block; text-align: right; margin-bottom: 8px;' }, 'كود التفعيل'),
+                elt('input', {
+                    id: 'login-code',
+                    type: 'text',
+                    placeholder: 'أدخل الكود المكون من 8 أرقام',
+                    style: 'text-align: center; font-size: 1.2rem; letter-spacing: 4px;'
+                })
+            ),
+            elt('button', {
+                className: 'btn btn-primary',
+                style: 'width: 100%; margin-top: 10px;',
+                onclick: async (e) => {
+                    const btn = e.target;
+                    const code = document.getElementById('login-code').value.trim();
+                    if (!code) return showNotification('يرجى إدخال الكود', 'error');
 
-    const orb1 = elt('div', { style: 'position: absolute; top: -100px; left: -100px; width: 300px; height: 300px; background: var(--primary-color); filter: blur(100px); opacity: 0.4; border-radius: 50%;' });
-    const orb2 = elt('div', { style: 'position: absolute; bottom: -100px; right: -100px; width: 400px; height: 400px; background: var(--secondary-color); filter: blur(100px); opacity: 0.3; border-radius: 50%;' });
+                    btn.disabled = true;
+                    btn.textContent = 'جاري التحقق...';
 
-    const card = elt('div', { className: 'glass-panel', style: 'padding: 40px; width: 100%; max-width: 400px; z-index: 1;' });
-
-    const title = elt('h2', { style: 'text-align: center; margin-bottom: 30px;' }, 'تسجيل الدخول');
-
-    const input = elt('input', {
-        type: 'text',
-        placeholder: 'أدخل كود التفعيل (8 أرقام)',
-        maxLength: '8',
-        style: 'text-align: center; letter-spacing: 4px; font-size: 1.2rem; direction: ltr;'
-    });
-
-    const btn = elt('button', {
-        className: 'btn btn-primary',
-        style: 'width: 100%; margin-top: 20px;'
-    }, 'دخول');
-
-    const hint = elt('p', { style: 'margin-top: 20px; font-size: 0.8rem; color: #64748b; text-align: center;' }, 'للتجربة: اضغط 7 للأكواد أو admin123');
-
-    btn.onclick = async () => {
-        const code = input.value.trim();
-        if (code.length < 5) return showNotification('الرجاء إدخال كود صحيح', 'error');
-
-        const res = window.store.login(code);
-        if (res.success) {
-            showNotification('تم تسجيل الدخول بنجاح');
-            window.location.hash = res.role === 'admin' ? '#admin' : '#home';
-        } else {
-            showNotification(res.message, 'error');
-        }
-    };
-
-    card.append(title, input, btn, hint);
-    container.append(orb1, orb2, card);
+                    const result = await window.store.login(code);
+                    if (result.success) {
+                        showNotification('تم تسجيل الدخول بنجاح');
+                        window.location.hash = '#home';
+                        window.location.reload();
+                    } else {
+                        showNotification(result.message, 'error');
+                        btn.disabled = false;
+                        btn.textContent = 'تسجيل الدخول';
+                    }
+                }
+            }, 'تسجيل الدخول'),
+            elt('p', { style: 'margin-top: 20px; color: var(--text-muted); font-size: 0.9rem;' }, 'إذا لم يكن لديك كود، يرجى التواصل مع المسؤول')
+        )
+    );
 
     return container;
 };

@@ -1,165 +1,128 @@
 // Lesson View
-window.LessonView = function (lessonId) {
+window.LessonView = async function (lessonId) {
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
     const session = window.store.checkSession();
-    if (!session) return elt('div');
 
-    const db = window.store.db;
-    const lesson = db.lessons.find(l => l.id == lessonId);
-
-    let unit, teacher, subject;
-    if (lesson) {
-        unit = db.units.find(u => u.id == lesson.unitId);
-        if (unit) teacher = db.teachers.find(t => t.id == unit.teacherId);
-        if (teacher) subject = db.subjects.find(s => s.id == teacher.subjectId);
+    const lesson = await window.store.getLesson(lessonId);
+    if (!lesson) {
+        window.location.hash = '#home';
+        return elt('div');
     }
 
-    const container = elt('div', { className: 'container page-transition', style: 'padding-top: 40px; padding-bottom: 60px;' });
-
-    const nav = elt('nav', { style: 'margin-bottom: 20px; color: var(--text-muted); font-size: 0.9rem;' },
-        elt('a', { href: '#home', style: 'color: var(--text-muted); text-decoration: none;' }, 'الرئيسية'),
-        elt('span', {}, ' / '),
-        elt('a', { href: subject ? `#subject/${subject.id}` : '#', style: 'color: var(--text-muted); text-decoration: none;' }, subject ? subject.title : '...'),
-        elt('span', {}, ' / '),
-        elt('a', { href: teacher ? `#teacher/${teacher.id}` : '#', style: 'color: var(--text-muted); text-decoration: none;' }, teacher ? teacher.name : '...'),
-        elt('span', {}, ' / '),
-        elt('span', { style: 'color: var(--primary-color);' }, lesson ? lesson.title : '...')
+    const container = elt('div', { className: 'container page-transition', style: 'padding-top: 40px; padding-bottom: 100px;' },
+        elt('div', { style: 'margin-bottom: 30px;' },
+            elt('a', { href: 'javascript:history.back()', style: 'color: var(--primary-color); text-decoration: none;' }, '← العودة'),
+            elt('h1', { style: 'margin-top: 10px;' }, lesson.title)
+        )
     );
 
-    if (!lesson) {
-        container.append(nav, elt('h2', {}, 'الدرس غير موجود'));
-        return container;
-    }
+    const contentArea = elt('div', { className: 'glass-panel', style: 'padding: 0; position: relative; min-height: 400px;' });
 
-    const title = elt('h2', { style: 'margin-bottom: 20px;' }, lesson.title);
-    container.append(nav, title);
-
-    const contentPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; min-height: 400px; position: relative; overflow: hidden;' });
-
+    // --- Video Content ---
     if (lesson.type === 'video') {
-        const wrapper = elt('div', {
-            style: 'position: relative; width: 100%; padding-top: 56.25%; background: black; border-radius: 8px; overflow: hidden;'
-        });
+        const videoWrapper = elt('div', { style: 'position: relative; width: 100%; aspect-ratio: 16/9; background: #000;' });
 
-        wrapper.oncontextmenu = (e) => e.preventDefault();
+        // Watermark
+        const watermark = elt('div', {
+            id: 'video-watermark',
+            style: 'position: absolute; z-index: 100; color: rgba(255,255,255,0.3); font-size: 1.2rem; pointer-events: none; transition: 0.5s;'
+        }, `ID: ${session.code || 'User'}`);
 
         const iframe = elt('iframe', {
-            src: lesson.content, // Should be Embed URL
-            style: 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;',
-            allowfullscreen: 'true'
+            src: lesson.content.includes('odysee.com') ? lesson.content.replace('odysee.com', 'odysee.com/$/embed') : lesson.content,
+            style: 'width: 100%; height: 100%; border: none;',
+            allowfullscreen: true
         });
 
-        const watermark = elt('div', {
-            style: 'position: absolute; color: rgba(255,255,255,0.3); font-size: 1.5rem; font-weight: bold; pointer-events: none; user-select: none; z-index: 10; white-space: nowrap;'
-        }, `${session.name} (${session.code})`);
+        videoWrapper.append(watermark, iframe);
+        contentArea.append(videoWrapper);
 
-        const moveWatermark = () => {
-            watermark.style.top = Math.floor(Math.random() * 80) + '%';
-            watermark.style.left = Math.floor(Math.random() * 80) + '%';
-        };
-        moveWatermark();
-        const wmInterval = setInterval(moveWatermark, 4000);
+        // Watermark Movement Logic
+        setInterval(() => {
+            watermark.style.top = Math.random() * 80 + '%';
+            watermark.style.left = Math.random() * 80 + '%';
+        }, 4000);
+    }
 
-        const cleanup = setInterval(() => {
-            if (!document.body.contains(watermark)) {
-                clearInterval(wmInterval);
-                clearInterval(cleanup);
-            }
-        }, 1000);
-
-        wrapper.append(iframe, watermark);
-        contentPanel.append(wrapper);
-    } else if (lesson.type === 'quiz') {
-        const attemptKey = `attempt_${session.code}_${lesson.id}`;
-        let attempts = parseInt(localStorage.getItem(attemptKey) || '0');
-
-        function renderQuiz(panel, lesson, attempts, attemptKey) {
-            const questions = lesson.content || [];
-
-            const form = elt('div', { style: 'display: flex; flex-direction: column; gap: 30px;' });
-
-            questions.forEach((q, idx) => {
-                const qDiv = elt('div', { className: 'quiz-question' },
-                    elt('h4', {}, `${idx + 1}. ${q.question}`),
-                    elt('div', { className: 'options', style: 'display: flex; flex-direction: column; gap: 10px; margin-top: 10px;' })
-                );
-
-                const optionsDiv = qDiv.querySelector('.options');
-                q.options.forEach((opt, optIdx) => {
-                    const label = elt('label', { style: 'display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid var(--surface-border); border-radius: 8px;' });
-                    const radio = elt('input', { type: 'radio', name: `q_${idx}`, value: optIdx, style: 'width: auto;' });
-                    label.append(radio, elt('span', {}, opt));
-                    optionsDiv.append(label);
-                });
-
-                form.append(qDiv);
-            });
-
-            const submitBtn = elt('button', { className: 'btn btn-primary', style: 'align-self: flex-start;' }, 'إرسال الإجابة');
-
-            submitBtn.onclick = () => {
-                let score = 0;
-                let answeredAll = true;
-
-                questions.forEach((q, idx) => {
-                    const selected = form.querySelector(`input[name="q_${idx}"]:checked`);
-                    if (!selected) answeredAll = false;
-                    else if (parseInt(selected.value) === q.correct) score++;
-                });
-
-                if (!answeredAll) return showNotification('الرجاء الإجابة على جميع الأسئلة', 'error');
-
-                const percentage = Math.round((score / questions.length) * 100);
-
-                attempts++;
-                localStorage.setItem(attemptKey, attempts);
-
-                const oldMax = parseInt(localStorage.getItem(attemptKey + '_max') || '0');
-                if (percentage > oldMax) localStorage.setItem(attemptKey + '_max', percentage);
-
-                panel.innerHTML = '';
-                panel.append(
-                    elt('div', { style: 'text-align: center; padding: 40px;' },
-                        elt('h3', {}, 'نتيجة الاختبار'),
-                        elt('div', {
-                            style: `font-size: 3rem; font-weight: bold; margin: 20px 0; color: ${percentage >= 50 ? '#10b981' : '#ef4444'};`
-                        }, `${percentage}%`),
-                        elt('p', {}, `عدد الإجابات الصحيحة: ${score} من ${questions.length}`),
-                        elt('button', { className: 'btn btn-outline', onclick: () => location.reload() }, 'عودة')
-                    )
-                );
-            };
-
-            form.append(submitBtn);
-            panel.append(form);
-        }
-
-        if (attempts >= 2) {
-            contentPanel.append(
-                elt('div', { style: 'text-align: center; padding: 40px;' },
-                    elt('h3', { style: 'color: var(--secondary-color);' }, 'لقد استنفذت عدد المحاولات المسموح بها لهذا الاختبار.'),
-                    elt('p', {}, `أعلى درجة: ${localStorage.getItem(attemptKey + '_max') || '0'}%`)
-                )
-            );
-        } else {
-            renderQuiz(contentPanel, lesson, attempts, attemptKey);
-        }
-    } else if (lesson.type === 'file') {
-        contentPanel.append(
-            elt('div', { style: 'text-align: center; padding: 60px;' },
-                elt('ion-icon', { name: 'document-attach-outline', style: 'font-size: 4rem; color: var(--primary-color); margin-bottom: 20px;' }),
-                elt('h3', {}, 'ملف الدرس'),
-                elt('a', {
-                    href: lesson.content,
-                    target: '_blank',
-                    className: 'btn btn-primary',
-                    style: 'margin-top: 20px;'
-                }, 'تحميل الملف')
-            )
+    // --- File Content ---
+    if (lesson.type === 'file') {
+        contentArea.style.padding = '60px 40px';
+        contentArea.style.textAlign = 'center';
+        contentArea.append(
+            elt('ion-icon', { name: 'document-attach', style: 'font-size: 5rem; color: var(--primary-color); margin-bottom: 20px;' }),
+            elt('h2', {}, 'هذا الدرس يحتوي على ملفات للتحميل'),
+            elt('a', {
+                href: lesson.content,
+                target: '_blank',
+                className: 'btn btn-primary',
+                style: 'display: inline-block; margin-top: 20px;'
+            }, 'تحميل الملفات (PDF / Resources)')
         );
     }
 
-    container.append(contentPanel);
+    // --- Quiz Content ---
+    if (lesson.type === 'quiz') {
+        contentArea.style.padding = '40px';
+        const quizData = lesson.content;
+
+        const renderQuiz = () => {
+            contentArea.innerHTML = '';
+            contentArea.append(elt('h2', { style: 'margin-bottom: 30px; text-align: center;' }, 'اختبار الدرس'));
+
+            quizData.forEach((q, qIndex) => {
+                const qDiv = elt('div', { style: 'margin-bottom: 30px; border-bottom: 1px solid var(--surface-border); padding-bottom: 20px;' },
+                    elt('h3', { style: 'margin-bottom: 15px;' }, `${qIndex + 1}. ${q.question}`),
+                    elt('div', { style: 'display: grid; gap: 10px;' },
+                        ...q.options.map((opt, oIndex) => {
+                            const label = elt('label', {
+                                className: 'glass-panel',
+                                style: 'padding: 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s;'
+                            },
+                                elt('input', { type: 'radio', name: `q${qIndex}`, value: oIndex, style: 'width: auto;' }),
+                                elt('span', {}, opt)
+                            );
+                            label.onclick = () => {
+                                label.parentElement.querySelectorAll('label').forEach(l => l.style.borderColor = 'var(--surface-border)');
+                                label.style.borderColor = 'var(--primary-color)';
+                            };
+                            return label;
+                        })
+                    )
+                );
+                contentArea.append(qDiv);
+            });
+
+            const submitBtn = elt('button', {
+                className: 'btn btn-primary',
+                style: 'width: 100%; margin-top: 20px;'
+            }, 'إرسال الإجابات');
+
+            submitBtn.onclick = () => {
+                let score = 0;
+                quizData.forEach((q, i) => {
+                    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+                    if (selected && parseInt(selected.value) === q.correct) score++;
+                });
+
+                showNotification(`لقد حصلت على ${score} من ${quizData.length}`);
+
+                // نتيجة الاختبار
+                contentArea.innerHTML = '';
+                contentArea.append(
+                    elt('div', { style: 'text-align:center; padding: 40px;' },
+                        elt('h2', {}, 'نتيجة الاختبار'),
+                        elt('div', { style: 'font-size: 4rem; font-weight: bold; color: var(--primary-color); margin: 20px 0;' }, `${Math.round((score / quizData.length) * 100)}%`),
+                        elt('p', {}, `لقد أجبت بشكل صحيح على ${score} من إجمالي ${quizData.length} سؤال`),
+                        elt('button', { className: 'btn btn-outline', style: 'margin-top: 30px;', onclick: () => renderQuiz() }, 'إعادة المحاولة')
+                    )
+                );
+            };
+            contentArea.append(submitBtn);
+        };
+        renderQuiz();
+    }
+
+    container.append(contentArea);
     return container;
 };
