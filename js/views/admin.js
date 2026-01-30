@@ -1,4 +1,4 @@
-// Admin View (Full Version with All Features)
+// Admin View (Full Version - Fully Fixed)
 window.AdminView = async function () {
     const elt = window.Utils.elt;
     const session = window.store.checkSession();
@@ -30,7 +30,7 @@ window.AdminView = async function () {
     const switchTab = (activeBtn) => {
         [tabCodes, tabPayments, tabContent].forEach(b => b.className = 'btn btn-outline');
         activeBtn.className = 'btn btn-primary';
-        contentArea.innerHTML = '';
+        // لا نحتاج لمسح contentArea يدوياً هنا لأن الدوال ستقوم بذلك
     };
 
     tabCodes.onclick = async () => { switchTab(tabCodes); await renderCodesTab(contentArea); };
@@ -44,6 +44,7 @@ window.AdminView = async function () {
 
 // --- تبويب الأكواد والمستخدمين ---
 async function renderCodesTab(container) {
+    container.innerHTML = ''; // مسح المحتوى القديم
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
     const formatDate = window.Utils.formatDate;
@@ -110,6 +111,7 @@ async function renderCodesTab(container) {
 
 // --- تبويب الاشتراكات والمدفوعات ---
 async function renderPaymentsTab(container) {
+    container.innerHTML = ''; // مسح المحتوى القديم
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
 
@@ -138,13 +140,19 @@ async function renderPaymentsTab(container) {
     const tableContainer = elt('div', { className: 'glass-panel', style: 'overflow-x: auto;' },
         elt('table', { style: 'width: 100%; border-collapse: collapse; min-width: 900px;' },
             elt('thead', {}, elt('tr', { style: 'background:rgba(255,255,255,0.05);' },
-                ['الاسم', 'فون المحول', 'تيليجرام', 'الباقة', 'الحالة', 'إجراءات'].map(h => elt('th', { style: 'padding:12px; text-align:right; font-size:0.8rem;' }, h))
+                ['الاسم', 'فون المحول', 'تيليجرام', 'الباقة', 'صورة التحويل', 'الحالة', 'إجراءات'].map(h => elt('th', { style: 'padding:12px; text-align:right; font-size:0.8rem;' }, h))
             )),
             elt('tbody', {},
                 ...payments.map(p => {
                     const statusBadge = elt('span', {
                         style: `padding:4px 8px; border-radius:4px; font-size:0.75rem; color:white; background: ${p.status === 'completed' ? '#10b981' : (p.status === 'failed' ? '#ef4444' : '#f59e0b')}`
                     }, p.status === 'completed' ? 'مكتمل' : (p.status === 'failed' ? 'فاشل' : 'انتظار'));
+
+                    const screenshotBtn = p.screenshot_url ? elt('button', {
+                        className: 'btn btn-outline',
+                        style: 'font-size:0.7rem; padding:5px 10px;',
+                        onclick: () => window.open(p.screenshot_url, '_blank')
+                    }, 'عرض الصورة') : elt('span', { style: 'color:var(--text-muted); font-size:0.7rem;' }, 'لا يوجد');
 
                     const actions = elt('td', { style: 'padding:10px; display:flex; gap:5px;' },
                         p.status === 'pending' ? [
@@ -158,6 +166,7 @@ async function renderPaymentsTab(container) {
                         elt('td', { style: 'padding:12px; font-family:monospace;' }, p.student_phone),
                         elt('td', { style: 'padding:12px;' }, p.telegram_username || '-'),
                         elt('td', { style: 'padding:12px;' }, p.plan_type === 'monthly' ? 'شهري' : 'سنوي'),
+                        elt('td', { style: 'padding:12px;' }, screenshotBtn),
                         elt('td', { style: 'padding:12px;' }, statusBadge),
                         actions
                     );
@@ -170,6 +179,7 @@ async function renderPaymentsTab(container) {
 }
 
 async function renderContentTab(container) {
+    container.innerHTML = ''; // مسح المحتوى القديم للوقاية من التكرار
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
     const db = await window.store.fetchAllData();
@@ -180,13 +190,15 @@ async function renderContentTab(container) {
         const inputs = fields.map(f => {
             const d = elt('div', { style: 'flex: 1; min-width: 150px;' }, elt('label', { style: 'display:block;margin-bottom:5px;font-size:0.8rem;' }, f.label));
             let input = f.type === 'select' ? elt('select', {}) : elt('input', { type: f.type || 'text', placeholder: f.placeholder });
-            if (f.type === 'select') f.options().forEach(o => input.append(elt('option', { value: o.id }, o.title || o.name)));
+            if (f.type === 'select' && f.options) {
+                f.options().forEach(o => input.append(elt('option', { value: o.id }, o.title || o.name || o.text)));
+            }
             d.append(input); return { key: f.key, input };
         });
         const btn = elt('button', {
             className: 'btn btn-primary', onclick: async () => {
                 const data = {}; inputs.forEach(i => data[i.key] = i.input.value);
-                try { await onSubmit(data); showNotification('تمت الإضافة'); renderContentTab(container); } catch (e) { showNotification('خطأ في الحفظ', 'error'); }
+                try { await onSubmit(data); showNotification('تمت الإضافة'); await renderContentTab(container); } catch (e) { console.error(e); showNotification('خطأ في الحفظ', 'error'); }
             }
         }, 'إضافة');
         form.append(...inputs.map(i => i.input.parentElement), btn); panel.append(form); return panel;

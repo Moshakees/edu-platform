@@ -94,7 +94,8 @@ window.LoginView = function () {
                     elt('option', { value: 'monthly' }, 'اشتراك شهري (50 جنيه)'),
                     elt('option', { value: 'yearly' }, 'اشتراك سنوي (500 جنيه)')
                 ),
-                elt('input', { id: 'p-screenshot', placeholder: 'رابط سكرين شوت للتحويل (اختياري)' }),
+                elt('div', { style: 'text-align:right; font-size:0.8rem; color:var(--text-muted);' }, 'ارفاق صورة التحويل (سكرين شوت):'),
+                elt('input', { id: 'p-file', type: 'file', accept: 'image/*', style: 'padding:5px;' }),
                 elt('button', {
                     className: 'btn btn-primary',
                     style: 'margin-top:10px;',
@@ -103,20 +104,24 @@ window.LoginView = function () {
                         const phone = document.getElementById('p-phone').value;
                         const telegram = document.getElementById('p-telegram').value;
                         const plan = document.getElementById('p-plan').value;
-                        const screenshot = document.getElementById('p-screenshot').value;
+                        const fileInput = document.getElementById('p-file');
 
                         if (!name || !phone) return showNotification('يرجى كتابة الاسم ورقم الهاتف', 'error');
+                        if (!fileInput.files[0]) return showNotification('يرجى إرفاق صورة التحويل (سكرين شوت)', 'error');
 
                         e.target.disabled = true;
-                        e.target.textContent = 'جاري إرسال الطلب...';
+                        e.target.textContent = 'جاري رفع الصورة...';
 
                         try {
+                            const screenshotUrl = await window.store.uploadFile(fileInput.files[0]);
+                            e.target.textContent = 'جاري إرسال الطلب...';
+
                             await window.store.submitPayment({
                                 student_name: name,
                                 student_phone: phone,
                                 telegram_username: telegram,
                                 plan_type: plan,
-                                screenshot_url: screenshot,
+                                screenshot_url: screenshotUrl,
                                 status: 'pending'
                             });
                             container.innerHTML = `
@@ -129,9 +134,10 @@ window.LoginView = function () {
                                 </div>
                             `;
                         } catch (err) {
-                            showNotification('حدث خطأ أثناء الإرسال', 'error');
+                            console.error(err);
+                            showNotification('حدث خطأ أثناء الإرسال أو الرفع', 'error');
                             e.target.disabled = false;
-                            e.target.textContent = 'إرسال الطلب';
+                            e.target.textContent = 'إرسال بيانات التحويل (تأكيد)';
                         }
                     }
                 }, 'إرسال بيانات التحويل (تأكيد)')

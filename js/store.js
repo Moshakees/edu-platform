@@ -183,6 +183,15 @@
         async updatePaymentStatus(id, status) {
             await supabase.from('payments').update({ status }).eq('id', id);
         }
+
+        async uploadFile(file, bucket = 'payments') {
+            const ext = file.name.split('.').pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+            const { data, error } = await supabase.storage.from(bucket).upload(fileName, file);
+            if (error) throw error;
+            const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+            return publicUrl;
+        }
     }
 
     window.store = new Store();
