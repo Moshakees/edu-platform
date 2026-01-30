@@ -50,6 +50,13 @@ CREATE TABLE IF NOT EXISTS public.codes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- جدول السلايدر
+CREATE TABLE IF NOT EXISTS public.slider (
+    id SERIAL PRIMARY KEY,
+    image_url TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 3. تفعيل الأذونات (مهم جداً للوصول العام)
 -- هذا يسمح بقراءة وكتابة البيانات بدون نظام حماية معقد حالياً
 ALTER TABLE public.subjects DISABLE ROW LEVEL SECURITY;
@@ -57,6 +64,7 @@ ALTER TABLE public.teachers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.units DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lessons DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.codes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.slider DISABLE ROW LEVEL SECURITY;
 
 -- 4. إضافة بيانات تجريبية (اختياري)
 -- INSERT INTO public.subjects (title, image) VALUES ('الرياضيات', 'https://cdn-icons-png.flaticon.com/512/2997/2997108.png') ON CONFLICT DO NOTHING;
