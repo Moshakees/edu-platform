@@ -3,6 +3,12 @@
     const SUPABASE_URL = 'https://leijfflxeyqaioyzkxgi.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_gmnQXuI23HeiA0dtIshbyQ_KiOlNZaL';
 
+    // تأكد من وجود مكتبة Supabase
+    if (!window.supabase) {
+        console.error("Supabase library not loaded!");
+        return;
+    }
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const SESSION_KEY = 'edu_platform_session';
 
@@ -12,21 +18,26 @@
         }
 
         async fetchAllData() {
-            const [codes, subjects, teachers, units, lessons] = await Promise.all([
-                supabase.from('codes').select('*'),
-                supabase.from('subjects').select('*'),
-                supabase.from('teachers').select('*'),
-                supabase.from('units').select('*'),
-                supabase.from('lessons').select('*')
-            ]);
-            this.db = {
-                codes: codes.data || [],
-                subjects: subjects.data || [],
-                teachers: teachers.data || [],
-                units: units.data || [],
-                lessons: lessons.data || []
-            };
-            return this.db;
+            try {
+                const [codes, subjects, teachers, units, lessons] = await Promise.all([
+                    supabase.from('codes').select('*'),
+                    supabase.from('subjects').select('*'),
+                    supabase.from('teachers').select('*'),
+                    supabase.from('units').select('*'),
+                    supabase.from('lessons').select('*')
+                ]);
+                this.db = {
+                    codes: codes.data || [],
+                    subjects: subjects.data || [],
+                    teachers: teachers.data || [],
+                    units: units.data || [],
+                    lessons: lessons.data || []
+                };
+                return this.db;
+            } catch (e) {
+                console.error("Fetch Error:", e);
+                return this.db;
+            }
         }
 
         async login(codeStr) {
@@ -37,7 +48,7 @@
             }
 
             const { data: code, error } = await supabase.from('codes').select('*').eq('code', codeStr).single();
-            if (error || !code) return { success: false, message: 'كود غير صحيح' };
+            if (error || !code) return { success: false, message: 'كود غير صحيح أو مشكلة في الاتصال' };
             if (code.status === 'banned') return { success: false, message: 'تم حظر هذا الكود' };
 
             if (code.status === 'new') {
@@ -85,7 +96,8 @@
         }
 
         async getCodes() {
-            const { data } = await supabase.from('codes').select('*').order('created_at', { ascending: false });
+            const { data, error } = await supabase.from('codes').select('*').order('created_at', { ascending: false });
+            if (error) { console.error("Error fetching codes:", error); return []; }
             return data || [];
         }
 
@@ -104,7 +116,7 @@
             await supabase.from('codes').update({
                 status: 'active',
                 expiry_date: newExpiry.toISOString(),
-                duration_days: code.duration_days + parseInt(days)
+                duration_days: (code.duration_days || 0) + parseInt(days)
             }).eq('code', codeStr);
             return true;
         }
@@ -121,7 +133,14 @@
         async deleteLesson(id) { await supabase.from('lessons').delete().eq('id', id); }
 
         // Getters
-        async getSubjects() { const { data } = await supabase.from('subjects').select('*').order('id'); return data || []; }
+        async getSubjects() {
+            const { data, error } = await supabase.from('subjects').select('*').order('id');
+            if (error) {
+                console.error("Error fetching subjects:", error);
+                return { error: true, details: error };
+            }
+            return data || [];
+        }
         async getTeachers(sid) { const { data } = await supabase.from('teachers').select('*').eq('subject_id', sid).order('id'); return data || []; }
         async getTeacherUnits(tid) { const { data } = await supabase.from('units').select('*, lessons(*)').eq('teacher_id', tid).order('id'); return data || []; }
         async getLesson(id) { const { data } = await supabase.from('lessons').select('*').eq('id', id).single(); return data; }
