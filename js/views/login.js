@@ -4,7 +4,7 @@ window.LoginView = function () {
     const showNotification = window.Utils.showNotification;
 
     const container = elt('div', { className: 'login-container page-transition' },
-        elt('div', { className: 'glass-panel', style: 'width: 100%; max-width: 400px; padding: 40px; text-align: center;' },
+        elt('div', { className: 'glass-panel login-box' },
             elt('h1', { style: 'margin-bottom: 30px;' }, 'تسجيل الدخول'),
             elt('div', { style: 'margin-bottom: 20px;' },
                 elt('label', { style: 'display: block; text-align: right; margin-bottom: 8px;' }, 'كود التفعيل'),

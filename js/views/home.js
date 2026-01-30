@@ -12,7 +12,7 @@ window.HomeView = async function () {
     const container = elt('div', { className: 'container page-transition', style: 'padding-top: 40px;' });
 
     // Header
-    const header = elt('header', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;' },
+    const header = elt('header', { className: 'main-header' },
         elt('div', {},
             elt('h1', {}, `أهلاً بك، ${session.name}`),
             elt('p', { style: 'color: var(--text-muted);' },
@@ -29,17 +29,13 @@ window.HomeView = async function () {
 
     // --- مكون السلايدر (Slideshow) ---
     if (sliderImages.length > 0) {
-        const sliderContainer = elt('div', {
-            className: 'glass-panel',
-            style: 'width: 100%; height: 350px; margin-bottom: 40px; position: relative; overflow: hidden; padding: 0; border-radius: 20px;'
-        });
+        const sliderContainer = elt('div', { className: 'hero-slider glass-panel' });
 
         const imagesElements = sliderImages.map((img, index) => elt('div', {
+            className: 'slider-img',
             style: `
-                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                background: url("${img.image_url}") center/cover no-repeat;
+                background-image: url("${img.image_url}");
                 opacity: ${index === 0 ? '1' : '0'};
-                transition: opacity 1s ease-in-out;
             `
         }));
 

@@ -10,7 +10,7 @@ window.AdminView = async function () {
 
     const container = elt('div', { className: 'container page-transition', style: 'padding-top: 40px; padding-bottom: 60px;' });
 
-    const header = elt('header', { style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;' },
+    const header = elt('header', { className: 'main-header' },
         elt('h1', {}, 'لوحة التحكم (Live)'),
         elt('button', { className: 'btn btn-outline', onclick: () => window.store.logout() }, 'تسجيل الخروج')
     );
