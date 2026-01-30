@@ -1,4 +1,4 @@
-// Admin View (Updated with Payments Management)
+// Admin View (Full Version with All Features)
 window.AdminView = async function () {
     const elt = window.Utils.elt;
     const session = window.store.checkSession();
@@ -42,102 +42,35 @@ window.AdminView = async function () {
     return container;
 };
 
-// --- تبويب الاشتراكات والمدفوعات ---
-async function renderPaymentsTab(container) {
-    const elt = window.Utils.elt;
-    const showNotification = window.Utils.showNotification;
-
-    const currentNumber = await window.store.getSettings('cash_number');
-    const settingsPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 30px;' },
-        elt('h4', { style: 'margin-bottom:15px;' }, '⚙️ إعدادات استقبال الدفع'),
-        elt('div', { style: 'display:flex; gap:10px; align-items:flex-end;' },
-            elt('div', { style: 'flex:1;' },
-                elt('label', { style: 'display:block; margin-bottom:5px; font-size:0.8rem;' }, 'رقم فودافون كاش'),
-                elt('input', { id: 'admin-cash-num', value: currentNumber, placeholder: '01XXXXXXXXX' })
-            ),
-            elt('button', {
-                className: 'btn btn-primary', onclick: async () => {
-                    const val = document.getElementById('admin-cash-num').value;
-                    await window.store.updateSettings('cash_number', val);
-                    showNotification('تم تحديث الرقم');
-                }
-            }, 'حفظ')
-        )
-    );
-    container.append(settingsPanel);
-
-    const payments = await window.store.getPayments();
-    const paymentsHeader = elt('h3', { style: 'margin-bottom:15px;' }, '💳 سجل طلبات الاشتراك');
-    const tableContainer = elt('div', { className: 'glass-panel', style: 'overflow-x: auto;' },
-        elt('table', { style: 'width: 100%; border-collapse: collapse; min-width: 900px;' },
-            elt('thead', {}, elt('tr', { style: 'background:rgba(255,255,255,0.05);' },
-                ['الاسم', 'فون المحول', 'تيليجرام', 'الباقة', 'الحالة', 'إجراءات'].map(h => elt('th', { style: 'padding:12px; text-align:right; font-size:0.8rem;' }, h))
-            )),
-            elt('tbody', {},
-                ...payments.map(p => {
-                    const row = elt('tr', { style: `border-bottom: 1px solid var(--surface-border); opacity: ${p.status !== 'pending' ? '0.7' : '1'}` });
-                    const statusBadge = elt('span', {
-                        style: `padding:4px 8px; border-radius:4px; font-size:0.75rem; color:white; background: ${p.status === 'completed' ? '#10b981' : (p.status === 'failed' ? '#ef4444' : '#f59e0b')}`
-                    }, p.status === 'completed' ? 'مكتمل' : (p.status === 'failed' ? 'فاشل' : 'انتظار'));
-
-                    const actions = elt('td', { style: 'padding:10px; display:flex; gap:5px;' },
-                        p.status === 'pending' ? [
-                            elt('button', { className: 'btn btn-outline', style: 'font-size:0.7rem; color:#10b981;', onclick: async () => { if (confirm('تم الاستلام وتفعيل الاشتراك؟')) { await window.store.updatePaymentStatus(p.id, 'completed'); renderPaymentsTab(container); } } }, 'قبول'),
-                            elt('button', { className: 'btn btn-outline', style: 'font-size:0.7rem; color:#ef4444;', onclick: async () => { if (confirm('رفض الطلب؟')) { await window.store.updatePaymentStatus(p.id, 'failed'); renderPaymentsTab(container); } } }, 'رفض')
-                        ] : elt('span', { style: 'color:var(--text-muted); font-size:0.7rem;' }, 'تمت المعالجة')
-                    );
-
-                    row.append(
-                        elt('td', { style: 'padding:12px;' }, p.student_name),
-                        elt('td', { style: 'padding:12px; font-family:monospace;' }, p.student_phone),
-                        elt('td', { style: 'padding:12px;' }, p.telegram_username || '-'),
-                        elt('td', { style: 'padding:12px;' }, p.plan_type === 'monthly' ? 'شهري' : 'سنوي'),
-                        elt('td', { style: 'padding:12px;' }, statusBadge),
-                        actions
-                    );
-                    return row;
-                })
-            )
-        )
-    );
-    if (payments.length > 0) container.append(paymentsHeader, tableContainer);
-    else container.append(paymentsHeader, elt('p', { style: 'text-align:center; padding:20px;' }, 'لا توجد طلبات'));
-}
-
+// --- تبويب الأكواد والمستخدمين ---
 async function renderCodesTab(container) {
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
     const formatDate = window.Utils.formatDate;
 
+    const nameInput = elt('input', { type: 'text', placeholder: 'مثال: أحمد محمد' });
+    const daysInput = elt('input', { type: 'number', value: '30' });
+
     const form = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;' },
-        elt('div', { style: 'flex: 1; min-width: 200px;' },
-            elt('label', { style: 'display: block; margin-bottom: 5px;' }, 'اسم الطالب'),
-            elt('input', { id: 'gen-name', type: 'text', placeholder: 'مثال: أحمد محمد' })
-        ),
-        elt('div', { style: 'width: 150px;' },
-            elt('label', { style: 'display: block; margin-bottom: 5px;' }, 'المدة (أيام)'),
-            elt('input', { id: 'gen-days', type: 'number', value: '30' })
-        ),
+        elt('div', { style: 'flex: 1; min-width: 200px;' }, elt('label', { style: 'display: block; margin-bottom: 5px;' }, 'اسم الطالب'), nameInput),
+        elt('div', { style: 'width: 150px;' }, elt('label', { style: 'display: block; margin-bottom: 5px;' }, 'المدة (أيام)'), daysInput),
         elt('button', {
             className: 'btn btn-primary', style: 'height: 48px;', onclick: async () => {
-                const name = document.getElementById('gen-name').value;
-                const days = document.getElementById('gen-days').value;
-                if (!name || !days) return showNotification('أكمل البيانات', 'error');
-                await window.store.generateCode(name, days);
+                if (!nameInput.value || !daysInput.value) return showNotification('أكمل البيانات', 'error');
+                await window.store.generateCode(nameInput.value, daysInput.value);
                 showNotification('تم الإنشاء');
-                document.getElementById('gen-name').value = '';
+                nameInput.value = '';
                 refreshList();
             }
         }, 'توليد كود')
     );
 
-    const searchPanel = elt('div', { className: 'glass-panel', style: 'padding: 15px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center;' },
-        elt('input', { id: 'admin-search', type: 'text', placeholder: 'ابحث بالكود أو الاسم...', style: 'flex: 1; direction: ltr;' })
-    );
+    const searchInput = elt('input', { type: 'text', placeholder: 'ابحث بالكود أو الاسم...', style: 'flex: 1; direction: ltr;' });
+    const searchPanel = elt('div', { className: 'glass-panel', style: 'padding: 15px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center;' }, searchInput);
 
     const tbody = elt('tbody');
     const refreshList = async () => {
-        const searchTerm = document.getElementById('admin-search')?.value || '';
+        const searchTerm = searchInput.value || '';
         tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">جاري التحميل...</td></tr>';
         let codes = await window.store.getCodes();
         if (searchTerm) {
@@ -162,7 +95,7 @@ async function renderCodesTab(container) {
         });
     };
 
-    document.getElementById('admin-search').oninput = refreshList;
+    searchInput.oninput = refreshList;
     const tableContainer = elt('div', { className: 'glass-panel', style: 'overflow-x: auto;' },
         elt('table', { style: 'width: 100%; border-collapse: collapse; min-width: 800px;' },
             elt('thead', {}, elt('tr', { style: 'background:rgba(255,255,255,0.05);' },
@@ -173,6 +106,67 @@ async function renderCodesTab(container) {
     );
     container.append(form, searchPanel, tableContainer);
     refreshList();
+}
+
+// --- تبويب الاشتراكات والمدفوعات ---
+async function renderPaymentsTab(container) {
+    const elt = window.Utils.elt;
+    const showNotification = window.Utils.showNotification;
+
+    const currentNumber = await window.store.getSettings('cash_number');
+    const cashInput = elt('input', { value: currentNumber, placeholder: '01XXXXXXXXX' });
+
+    const settingsPanel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 30px;' },
+        elt('h4', { style: 'margin-bottom:15px;' }, '⚙️ إعدادات استقبال الدفع'),
+        elt('div', { style: 'display:flex; gap:10px; align-items:flex-end;' },
+            elt('div', { style: 'flex:1;' },
+                elt('label', { style: 'display:block; margin-bottom:5px; font-size:0.8rem;' }, 'رقم فودافون كاش'),
+                cashInput
+            ),
+            elt('button', {
+                className: 'btn btn-primary', onclick: async () => {
+                    await window.store.updateSettings('cash_number', cashInput.value);
+                    showNotification('تم تحديث الرقم');
+                }
+            }, 'حفظ')
+        )
+    );
+    container.append(settingsPanel);
+
+    const payments = await window.store.getPayments();
+    const paymentsHeader = elt('h3', { style: 'margin-bottom:15px;' }, '💳 سجل طلبات الاشتراك');
+    const tableContainer = elt('div', { className: 'glass-panel', style: 'overflow-x: auto;' },
+        elt('table', { style: 'width: 100%; border-collapse: collapse; min-width: 900px;' },
+            elt('thead', {}, elt('tr', { style: 'background:rgba(255,255,255,0.05);' },
+                ['الاسم', 'فون المحول', 'تيليجرام', 'الباقة', 'الحالة', 'إجراءات'].map(h => elt('th', { style: 'padding:12px; text-align:right; font-size:0.8rem;' }, h))
+            )),
+            elt('tbody', {},
+                ...payments.map(p => {
+                    const statusBadge = elt('span', {
+                        style: `padding:4px 8px; border-radius:4px; font-size:0.75rem; color:white; background: ${p.status === 'completed' ? '#10b981' : (p.status === 'failed' ? '#ef4444' : '#f59e0b')}`
+                    }, p.status === 'completed' ? 'مكتمل' : (p.status === 'failed' ? 'فاشل' : 'انتظار'));
+
+                    const actions = elt('td', { style: 'padding:10px; display:flex; gap:5px;' },
+                        p.status === 'pending' ? [
+                            elt('button', { className: 'btn btn-outline', style: 'font-size:0.7rem; color:#10b981;', onclick: async () => { if (confirm('تم الاستلام وتفعيل الاشتراك؟')) { await window.store.updatePaymentStatus(p.id, 'completed'); renderPaymentsTab(container); } } }, 'قبول'),
+                            elt('button', { className: 'btn btn-outline', style: 'font-size:0.7rem; color:#ef4444;', onclick: async () => { if (confirm('رفض الطلب؟')) { await window.store.updatePaymentStatus(p.id, 'failed'); renderPaymentsTab(container); } } }, 'رفض')
+                        ] : elt('span', { style: 'color:var(--text-muted); font-size:0.7rem;' }, 'تمت المعالجة')
+                    );
+
+                    return elt('tr', { style: `border-bottom: 1px solid var(--surface-border); opacity: ${p.status !== 'pending' ? '0.7' : '1'}` },
+                        elt('td', { style: 'padding:12px;' }, p.student_name),
+                        elt('td', { style: 'padding:12px; font-family:monospace;' }, p.student_phone),
+                        elt('td', { style: 'padding:12px;' }, p.telegram_username || '-'),
+                        elt('td', { style: 'padding:12px;' }, p.plan_type === 'monthly' ? 'شهري' : 'سنوي'),
+                        elt('td', { style: 'padding:12px;' }, statusBadge),
+                        actions
+                    );
+                })
+            )
+        )
+    );
+    if (payments.length > 0) container.append(paymentsHeader, tableContainer);
+    else container.append(paymentsHeader, elt('p', { style: 'text-align:center; padding:20px;' }, 'لا توجد طلبات'));
 }
 
 async function renderContentTab(container) {
