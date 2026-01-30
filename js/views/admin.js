@@ -123,20 +123,20 @@ async function renderContentTab(container) {
     const db = await window.store.fetchAllData();
     container.innerHTML = '';
     container.append(
-        createSection('0. صور السلايدر', [{ label: 'رابط الصورة المباشر', key: 'url', placeholder: 'https://...' }], d => window.store.addSliderImage(d.url)),
-        createSection('1. إضافة مادة', [{ label: 'اسم المادة', key: 'title' }, { label: 'رابط الصورة', key: 'image' }], d => window.store.addSubject(d.title, d.image)),
-        createSection('2. إضافة مدرس', [{ label: 'المادة', key: 'sid', type: 'select', options: () => db.subjects }, { label: 'اسم المدرس', key: 'name' }, { label: 'الصورة', key: 'image' }, { label: 'نبذة', key: 'bio' }], d => window.store.addTeacher(d.sid, d.name, d.image, d.bio)),
-        createSection('3. إضافة وحدة', [{ label: 'المدرس', key: 'tid', type: 'select', options: () => db.teachers }, { label: 'اسم الوحدة', key: 'title' }], d => window.store.addUnit(d.tid, d.title)),
+        createSection('0. صور السلايدر', [{ label: 'رابط الصورة المباشر', key: 'url', placeholder: 'https://...' }], d => window.store.addSliderImage(d.url), db.slider, id => window.store.deleteSliderImage(id)),
+        createSection('1. إضافة مادة', [{ label: 'اسم المادة', key: 'title' }, { label: 'رابط الصورة', key: 'image' }], d => window.store.addSubject(d.title, d.image), db.subjects, id => window.store.deleteSubject(id)),
+        createSection('2. إضافة مدرس', [{ label: 'المادة', key: 'sid', type: 'select', options: () => db.subjects }, { label: 'اسم المدرس', key: 'name' }, { label: 'الصورة', key: 'image' }, { label: 'نبذة', key: 'bio' }], d => window.store.addTeacher(d.sid, d.name, d.image, d.bio), db.teachers, id => window.store.deleteTeacher(id)),
+        createSection('3. إضافة وحدة', [{ label: 'المدرس', key: 'tid', type: 'select', options: () => db.teachers }, { label: 'اسم الوحدة', key: 'title' }], d => window.store.addUnit(d.tid, d.title), db.units, id => window.store.deleteUnit(id)),
         createSection('4. إضافة درس', [{ label: 'الوحدة', key: 'uid', type: 'select', options: () => db.units }, { label: 'العنوان', key: 'title' }, { label: 'النوع', key: 'type', type: 'select', options: () => [{ id: 'video', title: 'فيديو' }, { id: 'quiz', title: 'اختبار' }] }, { label: 'المحتوى (رابط الفيديو أو JSON)', key: 'content' }], d => {
             let content = d.content;
             if (d.type === 'quiz' && typeof content === 'string') { try { content = JSON.parse(content || '[]'); } catch (e) { showNotification('خطأ JSON', 'error'); return; } }
             return window.store.addLesson(d.uid, d.title, d.type, content);
-        })
+        }, db.lessons, id => window.store.deleteLesson(id))
     );
 }
 
-// المساعد في بناء الأقسام مع منطق باني الاختبارات
-function createSection(title, fields, onSubmit) {
+// المساعد في بناء الأقسام مع منطق باني الاختبارات وقائمة العناصر المضافة
+function createSection(title, fields, onSubmit, items = [], onDelete = null) {
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
     const panel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 25px;' }, elt('h3', { style: 'margin-bottom: 20px;' }, title));
@@ -211,5 +211,39 @@ function createSection(title, fields, onSubmit) {
         };
         panel.append(quizBuilder);
     }
+
+    // عرض القائمة الموجودة
+    if (items && items.length > 0) {
+        const listDiv = elt('div', { style: 'margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:20px; overflow-x:auto;' });
+        const table = elt('table', { style: 'width:100%; text-align:right; font-size:0.9rem;' },
+            elt('thead', {}, elt('tr', { style: 'opacity:0.6;' },
+                elt('th', { style: 'padding:5px;' }, 'العنصر'),
+                onDelete ? elt('th', { style: 'padding:5px; width:80px;' }, 'إجراء') : null
+            )),
+            elt('tbody', {}, ...items.map(item => elt('tr', { style: 'border-bottom:1px solid rgba(255,255,255,0.05);' },
+                elt('td', { style: 'padding:10px;' }, item.title || item.name || item.image_url || 'بدون عنوان'),
+                onDelete ? elt('td', { style: 'padding:10px;' },
+                    elt('button', {
+                        className: 'btn btn-outline',
+                        style: 'color:#ef4444; padding:5px 10px; font-size:0.7rem;',
+                        onclick: async () => {
+                            if (confirm('هل أنت متأكد من الحذف؟')) {
+                                try {
+                                    await onDelete(item.id);
+                                    showNotification('تم الحذف');
+                                    renderContentTab(document.getElementById('admin-content'));
+                                } catch (e) {
+                                    showNotification('خطأ في الحذف', 'error');
+                                }
+                            }
+                        }
+                    }, 'حذف')
+                ) : null
+            )))
+        );
+        listDiv.append(table);
+        panel.append(listDiv);
+    }
+
     return panel;
 }
