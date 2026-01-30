@@ -132,11 +132,15 @@
         async renewCode(codeStr, days) {
             const { data: code } = await supabase.from('codes').select('*').eq('code', codeStr).single();
             if (!code) return false;
-            const now = new Date();
-            const currentExpiry = code.expiry_date ? new Date(code.expiry_date) : now;
-            const baseDate = currentExpiry > now ? currentExpiry : now;
-            const newExpiry = new Date(baseDate.getTime() + (days * 24 * 60 * 60 * 1000));
-            await supabase.from('codes').update({ status: 'active', expiry_date: newExpiry.toISOString(), duration_days: (code.duration_days || 0) + parseInt(days) }).eq('code', codeStr);
+
+            // عند التجديد، نجعل الكود "جديد" مرة أخرى ونصفر تواريخ التفعيل
+            // لكي يبدأ العد التنازلي من لحظة دخوله القادمة
+            await supabase.from('codes').update({
+                status: 'new',
+                duration_days: parseInt(days), // تعيين المدة الجديدة المطلوبة
+                activation_date: null,
+                expiry_date: null
+            }).eq('code', codeStr);
             return true;
         }
         async addSubject(title, image) { await supabase.from('subjects').insert([{ title, image }]); }
