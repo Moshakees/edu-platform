@@ -111,6 +111,7 @@
         }
         async getCodes() { const { data } = await supabase.from('codes').select('*').order('created_at', { ascending: false }); return data || []; }
         async updateCodeStatus(c, s) { await supabase.from('codes').update({ status: s }).eq('code', c); }
+        async deleteCode(codeStr) { await supabase.from('codes').delete().eq('code', codeStr); }
         async addSubject(t, i) { await supabase.from('subjects').insert([{ title: t, image: i }]); }
         async addTeacher(sid, n, i, b) { await supabase.from('teachers').insert([{ subject_id: sid, name: n, image: i, bio: b }]); }
         async addUnit(tid, t) { await supabase.from('units').insert([{ teacher_id: tid, title: t }]); }

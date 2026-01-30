@@ -106,7 +106,15 @@ async function renderCodesTab(container) {
                 if (d) { await window.store.renewCode(c.code, d); refreshList(searchInput.value); }
             };
 
-            actions.append(renewBtn, banBtn);
+            const delBtn = elt('button', { className: 'btn btn-outline', style: 'font-size: 0.8rem; margin-right: 5px; color: #ef4444; border-color: #ef4444;' }, 'حذف');
+            delBtn.onclick = async () => {
+                if (confirm(`هل أنت متأكد من حذف كود الطالب (${c.name}) نهائياً؟`)) {
+                    await window.store.deleteCode(c.code);
+                    refreshList(searchInput.value);
+                }
+            };
+
+            actions.append(renewBtn, banBtn, delBtn);
             tr.append(
                 elt('td', { style: 'padding: 15px; font-weight: bold; font-family: monospace; direction: ltr;' }, c.code),
                 elt('td', { style: 'padding: 15px;' }, c.name),
