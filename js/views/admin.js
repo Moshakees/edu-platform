@@ -41,7 +41,6 @@ window.AdminView = async function () {
         await renderContentTab(contentArea);
     };
 
-    // التشغيل الافتراضي
     tabCodes.click();
 
     container.append(header, tabs, contentArea);
@@ -53,7 +52,7 @@ async function renderCodesTab(container) {
     const showNotification = window.Utils.showNotification;
     const formatDate = window.Utils.formatDate;
 
-    // نموذج التوليد
+    // توليد الأكواد
     const form = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;' });
     const nameInput = elt('div', { style: 'flex: 1; min-width: 200px;' },
         elt('label', { style: 'display: block; margin-bottom: 5px;' }, 'اسم الطالب'),
@@ -76,7 +75,6 @@ async function renderCodesTab(container) {
     };
     form.append(nameInput, daysInput, genBtn);
 
-    // البحث والجدول
     const searchPanel = elt('div', { className: 'glass-panel', style: 'padding: 15px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center;' });
     const searchInput = elt('input', { type: 'text', placeholder: 'ابحث عن مستخدم بالكود أو الاسم...', style: 'flex: 1; direction: ltr;' });
     searchPanel.append(elt('ion-icon', { name: 'search-outline' }), searchInput);
@@ -87,15 +85,14 @@ async function renderCodesTab(container) {
     const refreshList = async (searchTerm = '') => {
         tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">جاري التحميل...</td></tr>';
         let codes = await window.store.getCodes();
-
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             codes = codes.filter(c => c.code.includes(term) || c.name.toLowerCase().includes(term));
         }
-
         tbody.innerHTML = '';
         codes.forEach(c => {
             const tr = elt('tr', { style: 'border-bottom: 1px solid var(--surface-border);' });
+            const actions = elt('td', { style: 'padding: 15px;' });
 
             const banBtn = elt('button', { className: 'btn btn-outline', style: 'font-size: 0.8rem;' }, c.status === 'banned' ? 'فك الحظر' : 'حظر');
             banBtn.onclick = async () => {
@@ -109,9 +106,7 @@ async function renderCodesTab(container) {
                 if (d) { await window.store.renewCode(c.code, d); refreshList(searchInput.value); }
             };
 
-            const actions = elt('td', { style: 'padding: 15px;' });
             actions.append(renewBtn, banBtn);
-
             tr.append(
                 elt('td', { style: 'padding: 15px; font-weight: bold; font-family: monospace; direction: ltr;' }, c.code),
                 elt('td', { style: 'padding: 15px;' }, c.name),
@@ -125,7 +120,6 @@ async function renderCodesTab(container) {
     };
 
     searchInput.oninput = () => refreshList(searchInput.value);
-
     const table = elt('table', { style: 'width: 100%; border-collapse: collapse; min-width: 700px;' },
         elt('thead', {}, elt('tr', {},
             elt('th', { style: 'padding:15px;text-align:right' }, 'الكود'),
@@ -147,7 +141,7 @@ async function renderContentTab(container) {
     const elt = window.Utils.elt;
     const showNotification = window.Utils.showNotification;
 
-    container.innerHTML = '<p style="text-align:center;">جاري تحميل المحتوى...</p>';
+    container.innerHTML = '<p style="text-align:center;">جاري تحميل البيانات...</p>';
     const db = await window.store.fetchAllData();
     container.innerHTML = '';
 
@@ -156,7 +150,6 @@ async function renderContentTab(container) {
             elt('h3', { style: 'margin-bottom: 15px;' }, title)
         );
         const form = elt('div', { style: 'display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;' });
-
         const inputs = fields.map(f => {
             const d = elt('div', { style: 'flex: 1; min-width: 150px;' }, elt('label', { style: 'display:block;margin-bottom:5px;font-size:0.8rem;' }, f.label));
             let input;
@@ -178,17 +171,20 @@ async function renderContentTab(container) {
             showNotification('تمت الإضافة بنجاح');
             renderContentTab(container);
         };
-
         form.append(...inputs.map(i => i.input.parentElement), btn);
         panel.append(form);
         return panel;
     };
 
-    // نموذج المواد
+    // 0. إدارة السلايدر
+    container.append(createSection('0. إضافة صور للسلايدر', [{ label: 'رابط الصورة المباشر', key: 'url', placeholder: 'https://...' }],
+        d => window.store.addSliderImage(d.url)));
+
+    // 1. المواد
     container.append(createSection('1. إضافة مادة', [{ label: 'اسم المادة', key: 'title' }, { label: 'رابط الصورة', key: 'image' }],
         d => window.store.addSubject(d.title, d.image)));
 
-    // المدرسين
+    // 2. المدرسين
     container.append(createSection('2. إضافة مدرس', [
         { label: 'المادة', key: 'subjectId', type: 'select', options: () => db.subjects },
         { label: 'اسم المدرس', key: 'name' },
@@ -196,13 +192,13 @@ async function renderContentTab(container) {
         { label: 'نبذة', key: 'bio' }
     ], d => window.store.addTeacher(d.subjectId, d.name, d.image, d.bio)));
 
-    // الوحدات
+    // 3. الوحدات
     container.append(createSection('3. إضافة وحدة', [
         { label: 'المدرس', key: 'teacherId', type: 'select', options: () => db.teachers },
         { label: 'عنوان الوحدة', key: 'title' }
     ], d => window.store.addUnit(d.teacherId, d.title)));
 
-    // الدروس
+    // 4. الدروس
     container.append(createSection('4. إضافة درس', [
         { label: 'الوحدة', key: 'unitId', type: 'select', options: () => db.units },
         { label: 'العنوان', key: 'title' },
@@ -210,64 +206,41 @@ async function renderContentTab(container) {
         { label: 'المحتوي', key: 'content' }
     ], d => {
         let content = d.content;
-        if (d.type === 'quiz') {
-            try {
-                content = JSON.parse(content || '[]');
-            } catch (e) {
-                showNotification('خطأ في تنسيق JSON الخاص بالاختبار', 'error');
-                return;
-            }
-        }
+        if (d.type === 'quiz') { try { content = JSON.parse(content || '[]'); } catch (e) { showNotification('خطأ JSON', 'error'); return; } }
         return window.store.addLesson(d.unitId, d.title, d.type, content);
     }));
 
-    // إدارة الحذف والتعديل
+    // --- إدارة المحتوى الحالي ---
     const manageTitle = elt('h2', { style: 'margin-top: 40px; margin-bottom: 20px; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px;' }, 'إدارة المحتوى الحالي');
     container.append(manageTitle);
 
-    // المواد
-    const sSection = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, 'المواد الدراسية'));
-    db.subjects.forEach(s => {
-        const item = elt('div', { className: 'glass-panel', style: 'padding: 10px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;' },
-            elt('span', { style: 'font-weight:bold;' }, `📚 مادة: ${s.title}`),
-            elt('button', { className: 'btn btn-outline', style: 'color:#ef4444; border-color:#ef4444; font-size:0.8rem;', onclick: async () => { if (confirm('حذف المادة سيحذف المدرسين والدروس التابعة لها. متأكد؟')) { await window.store.deleteSubject(s.id); renderContentTab(container); } } }, 'حذف')
-        );
-        sSection.append(item);
-    });
-    if (db.subjects.length === 0) sSection.append(elt('p', { style: 'color:var(--text-muted);' }, 'لا توجد مواد مضافة بعد'));
+    const renderManager = (title, items, labelFn, deleteFn) => {
+        const sec = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, title));
+        items.forEach(item => {
+            const div = elt('div', { className: 'glass-panel', style: 'padding: 10px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;' },
+                elt('span', {}, labelFn(item)),
+                elt('button', { className: 'btn btn-outline', style: 'color:#ef4444; border-color:#ef4444; font-size:0.75rem;', onclick: async () => { if (confirm('متأكد؟')) { await deleteFn(item.id); renderContentTab(container); } } }, 'حذف')
+            );
+            sec.append(div);
+        });
+        if (items.length === 0) sec.append(elt('p', { style: 'color:var(--text-muted); font-size:0.8rem;' }, 'لا توجد بيانات'));
+        return sec;
+    };
 
-    // المدرسين
-    const tSection = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, 'المدرسين'));
-    db.teachers.forEach(t => {
-        const sub = db.subjects.find(s => s.id == t.subject_id);
-        const item = elt('div', { className: 'glass-panel', style: 'padding: 10px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;' },
-            elt('span', {}, `👤 المدرس: ${t.name} (مادة: ${sub?.title || '؟'})`),
-            elt('button', { className: 'btn btn-outline', style: 'color:#ef4444; border-color:#ef4444; font-size:0.8rem;', onclick: async () => { if (confirm('حذف المدرس؟')) { await window.store.deleteTeacher(t.id); renderContentTab(container); } } }, 'حذف')
-        );
-        tSection.append(item);
-    });
-    if (db.teachers.length === 0) tSection.append(elt('p', { style: 'color:var(--text-muted);' }, 'لا يوجد مدرسون مضافون بعد'));
+    container.append(renderManager('🖼️ صور السلايدر', db.slider, i => i.image_url, id => window.store.deleteSliderImage(id)));
+    container.append(renderManager('📚 المواد', db.subjects, i => i.title, id => window.store.deleteSubject(id)));
+    container.append(renderManager('👤 المدرسين', db.teachers, i => `${i.name} (مادة: ${db.subjects.find(s => s.id == i.subject_id)?.title || '؟'})`, id => window.store.deleteTeacher(id)));
+    container.append(renderManager('📦 الوحدات', db.units, i => `${i.title} (مدرس: ${db.teachers.find(t => t.id == i.teacher_id)?.name || '؟'})`, id => window.store.deleteUnit(id)));
 
-    // الوحدات والدروس
-    const lSection = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, 'الوحدات والدروس'));
-    db.units.forEach(u => {
-        const tech = db.teachers.find(t => t.id == u.teacher_id);
-        const lessons = db.lessons.filter(l => l.unit_id == u.id);
-        const uDiv = elt('div', { className: 'glass-panel', style: 'padding: 15px; margin-bottom: 15px;' },
-            elt('div', { style: 'display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:5px;' },
-                elt('strong', {}, `📦 وحدة: ${u.title} (مدرس: ${tech?.name || '؟'})`),
-                elt('button', { style: 'background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;', onclick: async () => { if (confirm('حذف الوحدة؟')) { await window.store.deleteUnit(u.id); renderContentTab(container); } } }, 'حذف الوحدة')
-            ),
-            elt('div', { style: 'padding-right:15px;' },
-                ...lessons.map(l => elt('div', { style: 'display:flex; justify-content:space-between; padding:5px 0; font-size:0.9rem;' },
-                    elt('span', {}, `• ${l.title} (${l.type})`),
-                    elt('button', { style: 'background:none; border:none; color:#ef4444; pointer:cursor; font-size:0.7rem;', onclick: async () => { if (confirm('حذف الدرس؟')) { await window.store.deleteLesson(l.id); renderContentTab(container); } } }, 'حذف')
-                ))
-            )
+    // إدارة الدروس بشكل خاص
+    const lessonsSec = elt('div', { style: 'margin-bottom: 30px;' }, elt('h3', { style: 'margin-bottom:10px;' }, '📖 الدروس'));
+    db.lessons.forEach(l => {
+        const unit = db.units.find(u => u.id == l.unit_id);
+        const div = elt('div', { className: 'glass-panel', style: 'padding: 10px 20px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;' },
+            elt('span', {}, `• ${l.title} (وحدة: ${unit?.title || '؟'})`),
+            elt('button', { className: 'btn btn-outline', style: 'color:#ef4444; border-color:#ef4444; font-size:0.75rem;', onclick: async () => { if (confirm('حذف الدرس؟')) { await window.store.deleteLesson(l.id); renderContentTab(container); } } }, 'حذف')
         );
-        lSection.append(uDiv);
+        lessonsSec.append(div);
     });
-    if (db.units.length === 0) lSection.append(elt('p', { style: 'color:var(--text-muted);' }, 'لا توجد وحدات أو دروس مضافة بعد'));
-
-    container.append(sSection, tSection, lSection);
+    container.append(lessonsSec);
 }

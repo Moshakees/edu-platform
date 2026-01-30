@@ -19,25 +19,39 @@
 
         async fetchAllData() {
             try {
-                const [codes, subjects, teachers, units, lessons] = await Promise.all([
+                const [codes, subjects, teachers, units, lessons, slider] = await Promise.all([
                     supabase.from('codes').select('*'),
                     supabase.from('subjects').select('*'),
                     supabase.from('teachers').select('*'),
                     supabase.from('units').select('*'),
-                    supabase.from('lessons').select('*')
+                    supabase.from('lessons').select('*'),
+                    supabase.from('slider').select('*')
                 ]);
                 this.db = {
                     codes: codes.data || [],
                     subjects: subjects.data || [],
                     teachers: teachers.data || [],
                     units: units.data || [],
-                    lessons: lessons.data || []
+                    lessons: lessons.data || [],
+                    slider: slider.data || []
                 };
                 return this.db;
             } catch (e) {
                 console.error("Fetch Error:", e);
                 return this.db;
             }
+        }
+
+        // Slider Methods
+        async getSliderImages() {
+            const { data } = await supabase.from('slider').select('*').order('created_at', { ascending: false });
+            return data || [];
+        }
+        async addSliderImage(url) {
+            await supabase.from('slider').insert([{ image_url: url }]);
+        }
+        async deleteSliderImage(id) {
+            await supabase.from('slider').delete().eq('id', id);
         }
 
         async login(codeStr) {
