@@ -158,6 +158,33 @@
         async getSliderImages() { const { data } = await supabase.from('slider').select('*'); return data || []; }
         async addSliderImage(u) { await supabase.from('slider').insert([{ image_url: u }]); }
         async deleteSliderImage(id) { await supabase.from('slider').delete().eq('id', id); }
+
+        // --- الميزات الجديدة: الإعدادات والاشتراكات ---
+        async getSettings(key) {
+            const { data } = await supabase.from('settings').select('value').eq('key', key).single();
+            return data ? data.value : '';
+        }
+        async updateSettings(key, value) {
+            await supabase.from('settings').upsert({ key, value });
+        }
+        async getPayments() {
+            const { data } = await supabase.from('payments').select('*').order('created_at', { ascending: false });
+            return data || [];
+        }
+        async submitPayment(data) {
+            const { error } = await supabase.from('payments').insert([data]);
+            if (error) throw error;
+        }
+        async updatePaymentStatus(id, status) {
+            await supabase.from('payments').update({ status }).eq('id', id);
+        }
+        async uploadFile(file) {
+            const fileName = `${Date.now()}_${file.name}`;
+            const { data, error } = await supabase.storage.from('payments').upload(fileName, file);
+            if (error) throw error;
+            const { data: { publicUrl } } = supabase.storage.from('payments').getPublicUrl(fileName);
+            return publicUrl;
+        }
     }
 
     window.store = new Store();

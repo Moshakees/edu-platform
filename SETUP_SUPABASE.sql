@@ -78,5 +78,27 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
 );
 ALTER TABLE public.quiz_attempts DISABLE ROW LEVEL SECURITY;
 
--- 4. إضافة بيانات تجريبية (اختياري)
--- INSERT INTO public.subjects (title, image) VALUES ('الرياضيات', 'https://cdn-icons-png.flaticon.com/512/2997/2997108.png') ON CONFLICT DO NOTHING;
+-- جدول الإعدادات (مثلاً رقم الكاش)
+CREATE TABLE IF NOT EXISTS public.settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
+
+-- جدول طلبات الاشتراك (الدفع)
+CREATE TABLE IF NOT EXISTS public.payments (
+    id SERIAL PRIMARY KEY,
+    student_name TEXT NOT NULL,
+    student_phone TEXT NOT NULL,
+    telegram_username TEXT,
+    plan_type TEXT,
+    screenshot_url TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.payments DISABLE ROW LEVEL SECURITY;
+
+-- تأكد من إنشاء Storage Bucket باسم 'payments' في لوحة تحكم Supabase لجعل رفع الصور متاحاً.
+
+-- بيانات افتراضية للإعدادات
+INSERT INTO public.settings (key, value) VALUES ('cash_number', '010XXXXXXXX') ON CONFLICT DO NOTHING;

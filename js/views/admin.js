@@ -178,30 +178,95 @@ async function renderContentTab(container) {
     const showNotification = window.Utils.showNotification;
     const db = await window.store.fetchAllData();
     container.innerHTML = '';
+    container.append(
+        createSection('0. صور السلايدر', [{ label: 'رابط الصورة المباشر', key: 'url', placeholder: 'https://...' }], d => window.store.addSliderImage(d.url)),
+        createSection('1. إضافة مادة', [{ label: 'اسم المادة', key: 'title' }, { label: 'رابط الصورة', key: 'image' }], d => window.store.addSubject(d.title, d.image)),
+        createSection('2. إضافة مدرس', [{ label: 'المادة', key: 'sid', type: 'select', options: () => db.subjects }, { label: 'اسم المدرس', key: 'name' }, { label: 'الصورة', key: 'image' }, { label: 'نبذة', key: 'bio' }], d => window.store.addTeacher(d.sid, d.name, d.image, d.bio)),
+        createSection('3. إضافة وحدة', [{ label: 'المدرس', key: 'tid', type: 'select', options: () => db.teachers }, { label: 'اسم الوحدة', key: 'title' }], d => window.store.addUnit(d.tid, d.title)),
+        createSection('4. إضافة درس', [{ label: 'الوحدة', key: 'uid', type: 'select', options: () => db.units }, { label: 'العنوان', key: 'title' }, { label: 'النوع', key: 'type', type: 'select', options: () => [{ id: 'video', title: 'فيديو' }, { id: 'quiz', title: 'اختبار' }] }, { label: 'المحتوى (رابط الفيديو أو JSON)', key: 'content' }], d => {
+            let content = d.content;
+            if (d.type === 'quiz' && typeof content === 'string') { try { content = JSON.parse(content || '[]'); } catch (e) { showNotification('خطأ JSON', 'error'); return; } }
+            return window.store.addLesson(d.uid, d.title, d.type, content);
+        })
+    );
+}
 
-    const createSection = (title, fields, onSubmit) => {
-        const panel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 20px;' }, elt('h3', { style: 'margin-bottom: 15px;' }, title));
-        const form = elt('div', { style: 'display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;' });
-        const inputs = fields.map(f => {
-            const d = elt('div', { style: 'flex: 1; min-width: 150px;' }, elt('label', { style: 'display:block;margin-bottom:5px;font-size:0.8rem;' }, f.label));
-            let input = f.type === 'select' ? elt('select', {}) : elt('input', { type: f.type || 'text', placeholder: f.placeholder });
-            if (f.type === 'select') f.options().forEach(o => input.append(elt('option', { value: o.id }, o.title || o.name || o.text)));
-            d.append(input); return { key: f.key, input };
-        });
-        const btn = elt('button', {
-            className: 'btn btn-primary', onclick: async () => {
-                const data = {}; inputs.forEach(i => data[i.key] = i.input.value);
-                try { await onSubmit(data); showNotification('تمت الإضافة'); renderContentTab(container); } catch (e) { showNotification('خطأ', 'error'); }
-            }
-        }, 'إضافة');
-        form.append(...inputs.map(i => i.input.parentElement), btn); panel.append(form); return panel;
+// المساعد في بناء الأقسام مع منطق باني الاختبارات
+function createSection(title, fields, onSubmit) {
+    const elt = window.Utils.elt;
+    const showNotification = window.Utils.showNotification;
+    const panel = elt('div', { className: 'glass-panel', style: 'padding: 20px; margin-bottom: 25px;' }, elt('h3', { style: 'margin-bottom: 20px;' }, title));
+    const form = elt('div', { style: 'display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;' });
+
+    let quizBuilder = null;
+    let quizData = [];
+
+    const inputs = fields.map(f => {
+        const d = elt('div', { style: 'flex: 1; min-width: 150px;' }, elt('label', { style: 'display:block;margin-bottom:5px;font-size:0.8rem;' }, f.label));
+        let input;
+        if (f.type === 'select') {
+            input = elt('select', {});
+            f.options().forEach(o => input.append(elt('option', { value: o.id }, o.title || o.name || o.text)));
+        } else {
+            input = elt('input', { type: f.type || 'text', placeholder: f.placeholder });
+        }
+        d.append(input);
+        return { key: f.key, input };
+    });
+
+    const btn = elt('button', { className: 'btn btn-primary' }, 'إضافة');
+    btn.onclick = async () => {
+        const data = {};
+        inputs.forEach(i => data[i.key] = i.input.value);
+        if (title === '4. إضافة درس' && data.type === 'quiz') {
+            if (quizData.length === 0) return showNotification('أضف سؤالاً واحداً على الأقل', 'error');
+            data.content = quizData;
+        }
+        try {
+            await onSubmit(data);
+            showNotification('تمت الإضافة بنجاح');
+            const activeTab = document.querySelector('.tab-active');
+            if (activeTab) activeTab.click();
+        } catch (e) {
+            showNotification('حدث خطأ أثناء الحفظ', 'error');
+        }
     };
 
-    container.append(
-        createSection('0. صور السلايدر', [{ label: 'الرابط', key: 'url' }], d => window.store.addSliderImage(d.url)),
-        createSection('1. مادة جديدة', [{ label: 'الاسم', key: 'title' }, { label: 'الصورة', key: 'image' }], d => window.store.addSubject(d.title, d.image)),
-        createSection('2. مدرس جديد', [{ label: 'المادة', key: 'sid', type: 'select', options: () => db.subjects }, { label: 'الاسم', key: 'name' }], d => window.store.addTeacher(d.sid, d.name, '', '')),
-        createSection('3. وحدة جديدة', [{ label: 'المدرس', key: 'tid', type: 'select', options: () => db.teachers }, { label: 'العنوان', key: 'title' }], d => window.store.addUnit(d.tid, d.title)),
-        createSection('4. درس جديد', [{ label: 'الوحدة', key: 'uid', type: 'select', options: () => db.units }, { label: 'العنوان', key: 'title' }, { label: 'النوع', key: 'type', type: 'select', options: () => [{ id: 'video', text: 'فيديو' }, { id: 'quiz', text: 'اختبار' }] }, { label: 'المحتوى', key: 'content' }], d => window.store.addLesson(d.uid, d.title, d.type, d.content))
-    );
+    form.append(...inputs.map(i => i.input.parentElement), btn);
+    panel.append(form);
+
+    if (title === '4. إضافة درس') {
+        const typeSelect = inputs.find(i => i.key === 'type').input;
+        const contentInput = inputs.find(i => i.key === 'content').input;
+        quizBuilder = elt('div', { style: 'display:none; margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;' });
+
+        const renderBuilder = () => {
+            quizBuilder.innerHTML = '<h4>باني الاختبارات</h4>';
+            quizData.forEach((q, idx) => {
+                quizBuilder.append(elt('div', { style: 'background:rgba(255,255,255,0.05); padding:10px; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between;' },
+                    elt('span', {}, `${idx + 1}. ${q.question}`),
+                    elt('button', { style: 'color:#ef4444; background:none; border:none; cursor:pointer;', onclick: () => { quizData.splice(idx, 1); renderBuilder(); } }, 'حذف')
+                ));
+            });
+            const qIn = elt('input', { placeholder: 'السؤال' });
+            const opts = [elt('input', { placeholder: '1' }), elt('input', { placeholder: '2' }), elt('input', { placeholder: '3' }), elt('input', { placeholder: '4' })];
+            const correct = elt('select', {}, [0, 1, 2, 3].map(i => elt('option', { value: i }, `الاختيار ${i + 1} هو الصحيح`)));
+            const addBtn = elt('button', { className: 'btn btn-outline', style: 'margin-top:10px;' }, 'حفظ السؤال');
+            addBtn.onclick = () => {
+                if (!qIn.value || opts.some(o => !o.value)) return showNotification('أكمل السؤال', 'error');
+                quizData.push({ question: qIn.value, options: opts.map(o => o.value), correct: parseInt(correct.value) });
+                renderBuilder();
+            };
+            quizBuilder.append(elt('div', { style: 'display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px' }, qIn, ...opts, correct), addBtn);
+        };
+
+        typeSelect.onchange = () => {
+            const isQuiz = typeSelect.value === 'quiz';
+            contentInput.parentElement.style.display = isQuiz ? 'none' : 'block';
+            quizBuilder.style.display = isQuiz ? 'block' : 'none';
+            if (isQuiz) renderBuilder();
+        };
+        panel.append(quizBuilder);
+    }
+    return panel;
 }
