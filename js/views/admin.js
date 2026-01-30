@@ -283,7 +283,11 @@ async function renderContentTab(container) {
         { label: 'المحتوي', key: 'content' }
     ], d => {
         let content = d.content;
-        if (d.type === 'quiz') { try { content = JSON.parse(content || '[]'); } catch (e) { showNotification('خطأ JSON', 'error'); return; } }
+        // إذا كان المحتوى نصاً (إدخال يدوي) وليس مصفوفة (من باني الاختبارات)، نقوم بتحويله
+        if (d.type === 'quiz' && typeof content === 'string') {
+            try { content = JSON.parse(content || '[]'); }
+            catch (e) { showNotification('خطأ في تنسيق JSON', 'error'); return; }
+        }
         return window.store.addLesson(d.unitId, d.title, d.type, content);
     }));
 
