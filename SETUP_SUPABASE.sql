@@ -78,27 +78,5 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
 );
 ALTER TABLE public.quiz_attempts DISABLE ROW LEVEL SECURITY;
 
--- جدول الإعدادات (رقم المحفظة)
-CREATE TABLE IF NOT EXISTS public.settings (
-    id SERIAL PRIMARY KEY,
-    key TEXT UNIQUE NOT NULL,
-    value TEXT NOT NULL
-);
-INSERT INTO public.settings (key, value) VALUES ('cash_number', '01XXXXXXXXX') ON CONFLICT DO NOTHING;
-ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
-
--- جدول طلبات الاشتراك
-CREATE TABLE IF NOT EXISTS public.payments (
-    id SERIAL PRIMARY KEY,
-    student_name TEXT NOT NULL,
-    student_phone TEXT NOT NULL,
-    telegram_username TEXT,
-    screenshot_url TEXT,
-    plan_type TEXT NOT NULL, -- monthly / yearly
-    status TEXT DEFAULT 'pending', -- pending / completed / failed
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-ALTER TABLE public.payments DISABLE ROW LEVEL SECURITY;
-
 -- 4. إضافة بيانات تجريبية (اختياري)
 -- INSERT INTO public.subjects (title, image) VALUES ('الرياضيات', 'https://cdn-icons-png.flaticon.com/512/2997/2997108.png') ON CONFLICT DO NOTHING;

@@ -12,19 +12,14 @@
                     }
                 }
             }
-            const addChildren = (parent, children) => {
-                for (const child of children) {
-                    if (child === null || child === undefined || child === false) continue;
-                    if (Array.isArray(child)) {
-                        addChildren(parent, child);
-                    } else if (child instanceof Node) {
-                        parent.appendChild(child);
-                    } else {
-                        parent.appendChild(document.createTextNode(String(child)));
-                    }
+            for (const child of children) {
+                if (child === null || child === undefined || child === false) continue;
+                if (typeof child !== "string") {
+                    dom.appendChild(child);
+                } else {
+                    dom.appendChild(document.createTextNode(child));
                 }
-            };
-            addChildren(dom, children);
+            }
             return dom;
         },
 
