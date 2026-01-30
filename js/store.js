@@ -166,7 +166,7 @@
         }
 
         async updateSettings(key, value) {
-            await supabase.from('settings').upsert({ key, value });
+            await supabase.from('settings').upsert({ key, value }, { onConflict: 'key' });
         }
 
         // Payments
